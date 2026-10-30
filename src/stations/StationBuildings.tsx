@@ -1,4 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useUiStore } from '../store/useUiStore'
+import { useSettingsStore } from '../store/useSettingsStore'
 import * as THREE from 'three/webgpu'
 import { Html } from '@react-three/drei'
 import { useWorldStore } from '../store/useWorldStore'
@@ -61,9 +64,33 @@ export function House({ w, d, h, wall = buildingMaterials.wall, roof = buildingM
   )
 }
 
+const beamMaterial = new THREE.MeshBasicNodeMaterial({
+  color: '#fff1b8',
+  transparent: true,
+  opacity: 0.06,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  side: THREE.DoubleSide,
+})
+// A long cone lying along +x, apex at the lamp.
+const beamGeometry = new THREE.ConeGeometry(2, 20, 12, 1, true).rotateZ(Math.PI / 2).translate(10, 0, 0)
+
 function Lighthouse({ position }: { position: THREE.Vector3 }) {
   const stripes = 5
   const height = 9
+  const beam = useRef<THREE.Group>(null)
+  const glass = useMemo(() => buildingMaterials.glass.clone(), [])
+
+  // Rotating beam; a sent signal makes the lamp and beam flash for a few seconds.
+  useFrame((_, dt) => {
+    const since = (performance.now() - useUiStore.getState().signalAt) / 1000
+    const flashing = useUiStore.getState().signalAt > 0 && since < 3.5
+    const pulse = flashing ? 0.5 + 0.5 * Math.sin(since * 14) : 0
+    glass.emissiveIntensity = 1.2 + pulse * 5
+    beamMaterial.opacity = 0.05 + pulse * 0.4
+    if (beam.current && !useSettingsStore.getState().reducedMotion) beam.current.rotation.y += dt * (flashing ? 3 : 0.6)
+  })
+
   return (
     <group position={position}>
       <mesh geometry={cyl} material={buildingMaterials.stone} position-y={0.4} scale={[2.6, 0.8, 2.6]} castShadow receiveShadow />
@@ -84,7 +111,11 @@ function Lighthouse({ position }: { position: THREE.Vector3 }) {
         )
       })}
       <mesh geometry={cyl} material={buildingMaterials.dark} position-y={0.8 + height + 0.1} scale={[1.55, 0.2, 1.55]} castShadow />
-      <mesh geometry={cyl} material={buildingMaterials.glass} position-y={0.8 + height + 0.8} scale={[0.85, 1.2, 0.85]} />
+      <mesh geometry={cyl} material={glass} position-y={0.8 + height + 0.8} scale={[0.85, 1.2, 0.85]} />
+      <group ref={beam} position-y={0.8 + height + 0.8}>
+        <mesh geometry={beamGeometry} material={beamMaterial} />
+        <mesh geometry={beamGeometry} material={beamMaterial} rotation-y={Math.PI} />
+      </group>
       <mesh geometry={cone} material={buildingMaterials.red} position-y={0.8 + height + 1.9} scale={[1.15, 1.0, 1.15]} castShadow />
     </group>
   )

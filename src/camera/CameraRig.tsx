@@ -16,6 +16,15 @@ const tangent = new THREE.Vector3()
 const outward = new THREE.Vector3()
 const side = new THREE.Vector3()
 
+function applyViewOffset(camera: THREE.PerspectiveCamera, w: number, h: number, ox: number, oy: number) {
+  const ax = Math.abs(ox)
+  const ay = Math.abs(oy)
+  const fw = w + 2 * ax
+  const fh = h + 2 * ay
+  camera.aspect = fw / fh
+  camera.setViewOffset(fw, fh, ax - ox, ay - oy, w, h)
+}
+
 /**
  * Owns the visitor camera. Each frame it picks a shot for the current ride
  * state and eases towards it, so every cut is a smooth blend.
@@ -25,6 +34,7 @@ export function CameraRig() {
   const target = useRef(new THREE.Vector3())
   const initialised = useRef(false)
   const swayTime = useRef(0)
+  const offset = useRef({ x: 0, y: 0 })
 
   useFrame((state, rawDt) => {
     const world = useWorldStore.getState().world
@@ -92,6 +102,23 @@ export function CameraRig() {
     camera.position.lerp(desiredPos, k)
     target.current.lerp(desiredTarget, k)
     camera.lookAt(target.current)
+
+    // Shift the projection so the subject sits in the part of the screen not covered by UI.
+    const { width: w, height: h } = state.size
+    const desktop = w > 720
+    let dx = 0
+    let dy = 0
+    if (ride.state === 'INTRO') {
+      if (desktop) dx = Math.min(560, w * 0.45) / 2
+      else dy = -h * 0.2
+    } else if (ride.state === 'IDLE_AT_STATION' && ride.overlayOpen) {
+      if (desktop) dx = -(Math.min(460, w - 32) + 16) / 2
+      else dy = -h * 0.28
+    }
+    const ko = damp(3, dt)
+    offset.current.x += (dx - offset.current.x) * ko
+    offset.current.y += (dy - offset.current.y) * ko
+    applyViewOffset(camera as THREE.PerspectiveCamera, w, h, offset.current.x, offset.current.y)
   })
 
   return null

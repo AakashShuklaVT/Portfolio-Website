@@ -34,6 +34,14 @@ export function SoundDriver() {
 
   useEffect(
     () =>
+      useRideStore.subscribe((s, prev) => {
+        if (s.inWarp !== prev.inWarp) soundscape.portal(s.inWarp)
+      }),
+    [],
+  )
+
+  useEffect(
+    () =>
       useUiStore.subscribe((s, prev) => {
         if (s.signalAt !== prev.signalAt) soundscape.chime([79, 84, 88, 91])
       }),

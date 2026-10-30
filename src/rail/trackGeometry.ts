@@ -54,38 +54,36 @@ export function sweepProfile(track: TrackPath, ranges: [number, number][], profi
   return geometry
 }
 
-/** Stone portal: a block with an arched opening, facing +z, opening centred on x = 0, y = 0 at the rail. */
-export function createPortalGeometry() {
-  const w = 4.6
-  const h = 4.6
-  const hw = 1.55
-  const archY = 2.3
-  const shape = new THREE.Shape()
-  shape.moveTo(-w / 2, -0.4)
-  shape.lineTo(w / 2, -0.4)
-  shape.lineTo(w / 2, h)
-  shape.lineTo(-w / 2, h)
-  shape.closePath()
-  const hole = new THREE.Path()
-  hole.moveTo(-hw, -0.4)
-  hole.lineTo(hw, -0.4)
-  hole.lineTo(hw, archY)
-  hole.absarc(0, archY, hw, 0, Math.PI, false)
-  hole.lineTo(-hw, -0.4)
-  shape.holes.push(hole)
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 1.2, bevelEnabled: false, curveSegments: 6 })
-  geometry.translate(0, 0, -1.2)
-  return geometry
+/** Tunnel portal dimensions (metres, relative to the rail at the portal face). */
+export const PORTAL = {
+  width: 7.2,
+  height: 6.0,
+  halfWidth: 1.85,
+  /** Height where the arch starts. */
+  spring: 2.45,
+  /** Depth of the stone block; it reaches past the terrain cut at the mouth. */
+  depth: 3.7,
+  /** How far in front of the tunnel start the facade stands. */
+  lead: 1.2,
 }
 
-export function createPortalMouthGeometry() {
-  const hw = 1.55
-  const archY = 2.3
+/** Stone portal block: a slab with an arched opening, face at z = 0, extending back along -z. */
+export function createPortalGeometry() {
+  const { width: w, height: h, halfWidth: hw, spring } = PORTAL
   const shape = new THREE.Shape()
-  shape.moveTo(-hw, -0.4)
-  shape.lineTo(hw, -0.4)
-  shape.lineTo(hw, archY)
-  shape.absarc(0, archY, hw, 0, Math.PI, false)
-  shape.lineTo(-hw, -0.4)
-  return new THREE.ShapeGeometry(shape, 6)
+  shape.moveTo(-w / 2, -0.8)
+  shape.lineTo(w / 2, -0.8)
+  shape.lineTo(w / 2, h - 0.8)
+  shape.lineTo(-w / 2, h - 0.8)
+  shape.closePath()
+  const hole = new THREE.Path()
+  hole.moveTo(-hw, -0.8)
+  hole.lineTo(hw, -0.8)
+  hole.lineTo(hw, spring)
+  hole.absarc(0, spring, hw, 0, Math.PI, false)
+  hole.lineTo(-hw, -0.8)
+  shape.holes.push(hole)
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: PORTAL.depth, bevelEnabled: false, curveSegments: 8 })
+  geometry.translate(0, 0, -PORTAL.depth)
+  return geometry
 }

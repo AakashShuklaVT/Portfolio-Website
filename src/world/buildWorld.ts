@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import { TrackPath, GROUND, TUNNEL } from '../rail/TrackPath'
+import { TrackPath, GROUND, TUNNEL, type TrackRun } from '../rail/TrackPath'
 import { lerp, smoothstep } from '../lib/math'
 import { createNaturalHeight, generateHeightfield, type HeightFn, type Heightfield, type Stamp } from './terrainGen'
 import type { CameraShot, StationDef, WorldData } from './types'
@@ -38,6 +38,63 @@ function defaultStationCamera(pos: THREE.Vector3, tangent: THREE.Vector3, side: 
   cam.y = Math.max(cam.y, hf.heightAt(cam.x, cam.z) + 5)
   const target = pos.clone().addScaledVector(side, BUILDING_OFFSET * 0.5).addScaledVector(UP, 2)
   return { position: cam.toArray() as CameraShot['position'], target: target.toArray() as CameraShot['target'] }
+}
+
+/** Tunnel mouths: the stone portal block reaches this far into the tunnel. */
+export const PORTAL_ZONE = 1.2
+/** Roof of the tunnel vault above the rail. */
+const TUNNEL_COVER = 5.4
+const TUNNEL_SEARCH = 4.5
+
+/**
+ * Makes tunnels truly hollow. Every vertex near the railway finds its nearest
+ * rail sample. Over the inside of a tunnel the hill is raised so it always
+ * clears the vault; at the mouths the terrain is cut away so the stone portal
+ * and the vault inside show through instead of a wall of earth.
+ */
+function shapeTunnels(hf: Heightfield, track: TrackPath) {
+  const tunnels = track.runs.filter((r) => r.kind === TUNNEL)
+  if (!tunnels.length) return
+  const { res, extent, cell, heights, cut } = hf
+  const n = res + 1
+  const nearest = new Float32Array(n * n).fill(Infinity)
+  const owner = new Int32Array(n * n).fill(-1)
+  for (let s = 0; s < track.sampleCount; s++) {
+    const kind = track.kinds[s]
+    if (kind !== GROUND && kind !== TUNNEL) continue
+    const x = track.positions[s * 3]
+    const z = track.positions[s * 3 + 2]
+    const i0 = Math.max(0, Math.floor((x - TUNNEL_SEARCH + extent) / cell))
+    const i1 = Math.min(res, Math.ceil((x + TUNNEL_SEARCH + extent) / cell))
+    const j0 = Math.max(0, Math.floor((z - TUNNEL_SEARCH + extent) / cell))
+    const j1 = Math.min(res, Math.ceil((z + TUNNEL_SEARCH + extent) / cell))
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const d = Math.hypot(-extent + i * cell - x, -extent + j * cell - z)
+        const k = j * n + i
+        if (d < nearest[k]) {
+          nearest[k] = d
+          owner[k] = s
+        }
+      }
+    }
+  }
+  const runOf = (d: number): TrackRun | undefined => tunnels.find((r) => track.ahead(r.start, d) <= r.end - r.start)
+  for (let k = 0; k < n * n; k++) {
+    const s = owner[k]
+    if (s < 0 || track.kinds[s] !== TUNNEL) continue
+    const d = s * track.step
+    const run = runOf(d)
+    if (!run) continue
+    const railY = track.positions[s * 3 + 1]
+    const fromMouth = Math.min(track.ahead(run.start, d), track.ahead(d, run.end))
+    if (fromMouth < PORTAL_ZONE) {
+      if (nearest[k] < 2.7 && heights[k] < railY + 5.2) cut[k] = 1
+    } else {
+      const w = 1 - smoothstep(2.6, TUNNEL_SEARCH, nearest[k])
+      if (w > 0) heights[k] = Math.max(heights[k], lerp(heights[k], railY + TUNNEL_COVER, w))
+    }
+  }
 }
 
 export function buildDerivedWorld(world: WorldData): DerivedWorld {
@@ -88,6 +145,7 @@ export function buildDerivedWorld(world: WorldData): DerivedWorld {
     })
   }
   const heightfield = generateHeightfield(world.terrain, natural, stamps)
+  shapeTunnels(heightfield, track)
 
   const stations: StationRuntime[] = stationBase
     .map((s) => ({

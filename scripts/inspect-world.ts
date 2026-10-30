@@ -8,7 +8,7 @@ const world = createDefaultWorld()
 const derived = buildDerivedWorld(world)
 const { track, stations, heightfield } = derived
 console.log(`built in ${(performance.now() - t0).toFixed(0)} ms, track length ${track.length.toFixed(1)}`)
-const names = ['ground', 'tunnel', 'bridge']
+const names = ['ground', 'tunnel', 'bridge', 'warp']
 for (const r of track.runs) console.log(`  ${names[r.kind].padEnd(7)} ${r.start.toFixed(1).padStart(7)} -> ${r.end.toFixed(1).padStart(7)}  (${(r.end - r.start).toFixed(1)})`)
 stations.forEach((s, i) => {
   const next = stations[(i + 1) % stations.length]

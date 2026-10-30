@@ -45,6 +45,8 @@ export interface Heightfield {
   path: Float32Array
   /** Distance from each vertex to the nearest stamp centre (railway or station), capped. */
   clearance: Float32Array
+  /** 1 where the terrain is cut away for a tunnel mouth (triangles touching it are not rendered). */
+  cut: Uint8Array
   cell: number
   heightAt: (x: number, z: number) => number
   normalYAt: (x: number, z: number) => number
@@ -127,5 +129,5 @@ export function generateHeightfield(p: TerrainParams, natural: HeightFn, stamps:
     return clearance[j * n + i]
   }
 
-  return { extent, res, heights, path, clearance, cell, heightAt, normalYAt, clearanceAt }
+  return { extent, res, heights, path, clearance, cut: new Uint8Array(n * n), cell, heightAt, normalYAt, clearanceAt }
 }

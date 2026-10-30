@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useUiStore } from '../store/useUiStore'
 import { useSettingsStore } from '../store/useSettingsStore'
@@ -8,6 +8,8 @@ import { Html } from '@react-three/drei'
 import { useWorldStore } from '../store/useWorldStore'
 import type { StationRuntime } from '../world/buildWorld'
 import { useRideStore } from '../store/useRideStore'
+import { buildPlatform } from './platform'
+
 
 const mat = (color: string) => new THREE.MeshStandardNodeMaterial({ color, roughness: 0.9, flatShading: true })
 export const buildingMaterials = {
@@ -125,15 +127,17 @@ function Lighthouse({ position }: { position: THREE.Vector3 }) {
 }
 
 function StationBuilding({ station }: { station: StationRuntime }) {
-  const { position, tangent, side, buildingPosition } = station
+  const { side, buildingPosition } = station
   const yaw = useMemo(() => Math.atan2(-side.x, -side.z), [side])
-  const platformYaw = useMemo(() => Math.atan2(tangent.x, tangent.z), [tangent])
-  const platformPos = position.clone().addScaledVector(side, 2.35)
+  const track = useWorldStore((s) => s.derived?.track)
+  const platform = useMemo(() => (track ? buildPlatform(track, station) : null), [track, station])
+  useEffect(() => () => void (platform && (platform.body.dispose(), platform.edge.dispose())), [platform])
   const ground = buildingPosition.y - 0.25
   const type = station.def.building
   return (
     <group name={`station-${station.def.id}`}>
-      <mesh geometry={box} material={buildingMaterials.platform} position={[platformPos.x, position.y - 0.15, platformPos.z]} rotation-y={platformYaw} scale={[2.2, 1.1, 11]} castShadow receiveShadow />
+      {platform && <mesh geometry={platform.body} material={buildingMaterials.platform} castShadow receiveShadow />}
+      {platform && <mesh geometry={platform.edge} material={buildingMaterials.white} receiveShadow />}
       <group position={[buildingPosition.x, ground, buildingPosition.z]} rotation-y={yaw}>
         {type === 'harbor' && (
           <>

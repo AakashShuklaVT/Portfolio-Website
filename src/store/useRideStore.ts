@@ -8,14 +8,15 @@ interface RideStore {
   currentStation: string | null
   targetStation: string | null
   overlayOpen: boolean
-  inTunnel: boolean
+  /** The engine is between the portal gates. */
+  inWarp: boolean
   /** Board: leave the overview and arrive at the first station. */
   board: (firstStation: string) => void
   depart: (target: string, fast?: boolean) => void
   setState: (state: RideState) => void
   arrive: (station: string) => void
   setOverlayOpen: (open: boolean) => void
-  setInTunnel: (inTunnel: boolean) => void
+  setInWarp: (inWarp: boolean) => void
 }
 
 export const useRideStore = create<RideStore>((set, get) => ({
@@ -23,7 +24,7 @@ export const useRideStore = create<RideStore>((set, get) => ({
   currentStation: null,
   targetStation: null,
   overlayOpen: false,
-  inTunnel: false,
+  inWarp: false,
   board: (firstStation) => set({ state: 'ARRIVING', currentStation: firstStation, targetStation: firstStation }),
   depart: (target, fast = false) => {
     const { currentStation, state } = get()
@@ -33,5 +34,5 @@ export const useRideStore = create<RideStore>((set, get) => ({
   setState: (state) => set({ state }),
   arrive: (station) => set({ state: 'IDLE_AT_STATION', currentStation: station, targetStation: null, overlayOpen: true }),
   setOverlayOpen: (overlayOpen) => set({ overlayOpen }),
-  setInTunnel: (inTunnel) => set({ inTunnel }),
+  setInWarp: (inWarp) => set({ inWarp }),
 }))

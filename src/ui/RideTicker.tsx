@@ -9,7 +9,7 @@ export function RideTicker() {
   const state = useRideStore((s) => s.state)
   const targetId = useRideStore((s) => s.targetStation)
   const currentId = useRideStore((s) => s.currentStation)
-  const inTunnel = useRideStore((s) => s.inTunnel)
+  const inWarp = useRideStore((s) => s.inWarp)
   const stations = useWorldStore((s) => s.derived?.stations)
   const bar = useRef<HTMLSpanElement>(null)
   const moving = state === 'DEPARTING' || state === 'RIDING' || state === 'ARRIVING' || state === 'FAST_TRAVEL'
@@ -39,7 +39,7 @@ export function RideTicker() {
   return (
     <div className="ticker" role="status" aria-live="polite">
       <div className="ticker-text">
-        <span className="eyebrow">{inTunnel ? 'Through the mountain…' : fast ? 'Express to' : state === 'ARRIVING' ? 'Arriving at' : 'Next stop'}</span>
+        <span className="eyebrow">{inWarp ? 'Through the portal…' : fast ? 'Express to' : state === 'ARRIVING' ? 'Arriving at' : 'Next stop'}</span>
         <strong>{target.def.name}</strong>
       </div>
       <span className="ticker-bar" aria-hidden="true">

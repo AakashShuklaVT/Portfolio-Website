@@ -157,6 +157,37 @@ export const soundscape = {
     }
   },
 
+  /** A rising (or falling) shimmering whoosh for the portal gates. */
+  portal(rising = true) {
+    if (!this.active) return
+    const c = ctx!
+    const t = c.currentTime
+    const src = c.createBufferSource()
+    src.buffer = noiseBuffer
+    const filter = c.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.Q.value = 4
+    filter.frequency.setValueAtTime(rising ? 300 : 2400, t)
+    filter.frequency.exponentialRampToValueAtTime(rising ? 2600 : 320, t + 1.4)
+    const g = c.createGain()
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(0.22, t + 0.35)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.6)
+    src.connect(filter).connect(g).connect(master)
+    src.start(t)
+    src.stop(t + 1.7)
+    const o = c.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(rising ? 330 : 990, t)
+    o.frequency.exponentialRampToValueAtTime(rising ? 990 : 330, t + 1.2)
+    const og = c.createGain()
+    og.gain.setValueAtTime(0, t)
+    og.gain.linearRampToValueAtTime(0.04, t + 0.2)
+    og.gain.exponentialRampToValueAtTime(0.001, t + 1.3)
+    o.connect(og).connect(master)
+    o.start(t)
+    o.stop(t + 1.4)
+  },
   brake() {
     if (!this.active) return
     const c = ctx!

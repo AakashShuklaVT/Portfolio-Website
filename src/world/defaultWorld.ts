@@ -2,8 +2,9 @@ import { DEG, lerp } from '../lib/math'
 import type { TrackPoint, WorldData } from './types'
 
 // Keyframes (angle in degrees, radius, rail height) for the default railway.
-// It climbs the terraces counter-clockwise from the harbour to the summit,
-// then dives into the mountain and spirals back down to the shore in a tunnel.
+// It climbs the terraces counter-clockwise from the harbour to the summit.
+// Past the lighthouse it runs into a portal gate; the stretch after that is
+// hidden and the train reappears from a second gate on the shore.
 const KEYS: [number, number, number][] = [
   [-20, 55, 1.4],
   [0, 55, 1.4], // Harbor
@@ -22,15 +23,20 @@ const KEYS: [number, number, number][] = [
   [345, 17.5, 19.4],
   [425, 8, 25.4],
   [460, 7.6, 25.4], // Lighthouse
-  [478, 7.8, 25.4],
-  [505, 8.5, 20.5], // trench into the descent tunnel
-  [530, 12, 13],
-  [575, 20, 6],
-  [625, 32, 3],
-  [665, 42, 1.8],
-  [685, 47.5, 1.4],
-  [705, 53, 1.4],
+  [480, 7.8, 25.4],
+  [515, 8.4, 25.4],
+  [540, 9.2, 25.4], // summit gate (exit) at ~534
+  // hidden stretch
+  [575, 24, 20],
+  [610, 44, 9],
+  [630, 58, 1.4],
+  [650, 56.5, 1.4], // shore gate (entry) at ~664
+  [705, 55, 1.4],
 ]
+
+/** Where the portal gates stand. */
+export const WARP_EXIT_DEG = 534
+export const WARP_ENTRY_DEG = 664
 
 function keyAt(deg: number) {
   for (let i = 0; i < KEYS.length - 1; i++) {
@@ -52,6 +58,11 @@ export const polar = (deg: number, r: number, y: number): [number, number, numbe
   +y.toFixed(3),
   +(Math.cos(deg * DEG) * r).toFixed(3),
 ]
+
+const trackPoint = (deg: number) => {
+  const { r, y } = keyAt(deg)
+  return polar(deg, r, y)
+}
 
 function buildTrackPoints(): TrackPoint[] {
   const points: TrackPoint[] = []
@@ -78,7 +89,12 @@ export function createDefaultWorld(): WorldData {
       resolution: 220,
     },
     water: { level: 0, shallow: '#7fd3d1', deep: '#2f8ca8', foam: '#f6fbf7' },
-    track: { points: buildTrackPoints(), tunnelDepth: 3.2, bridgeHeight: 3.5 },
+    track: {
+      points: buildTrackPoints(),
+      tunnelDepth: 3.2,
+      bridgeHeight: 3.5,
+      warp: { exit: trackPoint(WARP_EXIT_DEG), entry: trackPoint(WARP_ENTRY_DEG) },
+    },
     stations: [
       { id: 'harbor', name: 'Harbor Station', anchor: polar(0, 55, 1.4), contentId: 'about', building: 'harbor' },
       { id: 'woodland', name: 'Woodland Halt', anchor: polar(100, 41.5, 7.4), contentId: 'projects', building: 'woodland' },

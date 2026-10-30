@@ -2,10 +2,12 @@ import * as THREE from 'three/webgpu'
 import type { HeightFn } from '../world/terrainGen'
 import type { TrackData } from '../world/types'
 
-export type TrackKind = 0 | 1 | 2
+export type TrackKind = 0 | 1 | 2 | 3
 export const GROUND: TrackKind = 0
 export const TUNNEL: TrackKind = 1
 export const BRIDGE: TrackKind = 2
+/** Between the two portal gates: not rendered, the train travels through it hidden. */
+export const WARP: TrackKind = 3
 
 export interface TrackRun {
   kind: TrackKind
@@ -29,6 +31,8 @@ export class TrackPath {
   readonly positions: Float32Array
   readonly kinds: Uint8Array
   readonly runs: TrackRun[]
+  /** The hidden stretch between the exit gate (start) and the entry gate (end), if the track has gates. */
+  readonly warp: { start: number; end: number; length: number } | null
 
   constructor(data: TrackData, natural: HeightFn) {
     const pts = data.points.map(({ p }) => new THREE.Vector3(p[0], p[1], p[2]))
@@ -49,6 +53,20 @@ export class TrackPath {
       const z = this.positions[i * 3 + 2]
       const ground = natural(x, z)
       this.kinds[i] = ground - y > data.tunnelDepth ? TUNNEL : y - ground > data.bridgeHeight ? BRIDGE : GROUND
+    }
+    this.warp = null
+    if (data.warp) {
+      const [ex, ey, ez] = data.warp.exit
+      const [nx, ny, nz] = data.warp.entry
+      const start = this.nearestDistance({ x: ex, y: ey, z: ez })
+      const end = this.nearestDistance({ x: nx, y: ny, z: nz })
+      const length = this.ahead(start, end)
+      if (length > 1) {
+        this.warp = { start, end, length }
+        const a = Math.round(start / this.step)
+        const count = Math.round(length / this.step)
+        for (let k = 0; k < count; k++) this.kinds[(a + k) % this.sampleCount] = WARP
+      }
     }
     this.runs = this.buildRuns()
   }
@@ -95,6 +113,11 @@ export class TrackPath {
   /** Forward distance from a to b along the loop. */
   ahead(a: number, b: number) {
     return this.wrap(b - a)
+  }
+
+  /** True inside the hidden stretch between the gates. */
+  inWarp(d: number) {
+    return !!this.warp && this.ahead(this.warp.start, d) < this.warp.length
   }
 
   kindAt(d: number): TrackKind {

@@ -4,6 +4,8 @@ import type * as THREE from 'three/webgpu'
 import { useAppStore } from '../store/useAppStore'
 import { useWorldStore } from '../store/useWorldStore'
 import { revealRuntime } from '../world/Reveal'
+import { useRideStore } from '../store/useRideStore'
+import { trainRuntime } from '../rail/trainRuntime'
 
 /**
  * Compiles every pipeline in the scene before the island is shown, so the
@@ -17,7 +19,7 @@ export function WarmUp() {
   const ready = useWorldStore((s) => !!s.derived)
 
   useEffect(() => {
-    if (import.meta.env.DEV) Object.assign(window, { __scene: scene, __gl: gl, __camera: camera })
+    if (import.meta.env.DEV) Object.assign(window, { __scene: scene, __gl: gl, __camera: camera, __ride: useRideStore, __train: trainRuntime, __world: useWorldStore })
   }, [scene, gl, camera])
 
   useEffect(() => {

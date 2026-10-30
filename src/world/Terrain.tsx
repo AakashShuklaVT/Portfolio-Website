@@ -9,7 +9,7 @@ import type { Heightfield } from './terrainGen'
 const SEA_FLOOR_CULL = -5.5
 
 function buildTerrainGeometry(hf: Heightfield) {
-  const { res, extent, cell, heights, path } = hf
+  const { res, extent, cell, heights, path, cut } = hf
   const n = res + 1
   const rand = mulberry32(1234)
   const pos: number[] = []
@@ -23,6 +23,8 @@ function buildTerrainGeometry(hf: Heightfield) {
   const ac = new THREE.Vector3()
 
   const pushTri = (i0: number, i1: number, i2: number) => {
+    // Tunnel mouths: leave the hole open for the portal and the vault behind it.
+    if (cut[i0] || cut[i1] || cut[i2]) return
     const k = [i0, i1, i2]
     const ys = k.map((v) => heights[v])
     if (ys[0] < SEA_FLOOR_CULL && ys[1] < SEA_FLOOR_CULL && ys[2] < SEA_FLOOR_CULL) return

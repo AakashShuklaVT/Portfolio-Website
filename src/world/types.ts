@@ -27,6 +27,11 @@ export interface TrackData {
   tunnelDepth: number
   /** Rail higher than this above the terrain makes a bridge. */
   bridgeHeight: number
+  /**
+   * Optional pair of portal gates. The train enters the exit gate, the track
+   * between the gates is hidden, and it reappears from the entry gate.
+   */
+  warp?: { exit: Vec3; entry: Vec3 }
 }
 
 export interface CameraShot {

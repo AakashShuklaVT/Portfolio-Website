@@ -13,6 +13,7 @@ import { Scatter } from './world/Scatter'
 import { Props } from './world/Props'
 import { Clouds } from './world/Clouds'
 import { Track } from './rail/Track'
+import { WarpGates } from './rail/WarpGates'
 import { Train } from './rail/Train'
 import { RideController } from './rail/RideController'
 import { StationBuildings } from './stations/StationBuildings'
@@ -64,6 +65,7 @@ export default function App() {
           <Reveal mode="rise" duration={1.6}>
             <Terrain />
             <Track />
+            <WarpGates />
             <Scatter />
             <Props />
           </Reveal>

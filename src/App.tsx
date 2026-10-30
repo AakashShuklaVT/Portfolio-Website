@@ -1,26 +1,45 @@
 import './core/three'
+import { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
 import { createRenderer } from './core/renderer'
 import { flags } from './core/flags'
-import { PlaceholderIsland } from './world/PlaceholderIsland'
+import { useWorldStore } from './store/useWorldStore'
+import { Atmosphere } from './world/Atmosphere'
+import { Terrain } from './world/Terrain'
+import { Water } from './world/Water'
+import { Track } from './rail/Track'
+import { Train } from './rail/Train'
+import { RideController } from './rail/RideController'
+import { StationBuildings } from './stations/StationBuildings'
+import { CameraRig } from './camera/CameraRig'
+import { RideUI } from './ui/RideUI'
 import { DebugBadge } from './ui/DebugBadge'
 
 export default function App() {
+  const load = useWorldStore((s) => s.load)
+  useEffect(() => void load(), [load])
+
   return (
     <>
       <Canvas
         className="scene"
         gl={createRenderer}
         dpr={[1, 2]}
-        camera={{ position: [70, 50, 70], fov: 35, near: 0.5, far: 600 }}
+        shadows="percentage"
+        camera={{ position: [95, 85, 125], fov: 38, near: 0.5, far: 900 }}
       >
-        <color attach="background" args={['#f6dcb3']} />
-        <hemisphereLight args={['#fff1d6', '#7a9a6a', 1.2]} />
-        <directionalLight position={[40, 60, 25]} intensity={2.4} color="#fff0d8" castShadow />
-        <PlaceholderIsland />
-        <OrbitControls makeDefault target={[0, 8, 0]} />
+        <Suspense fallback={null}>
+          <Atmosphere />
+          <Terrain />
+          <Water />
+          <Track />
+          <StationBuildings />
+          <Train />
+          <RideController />
+          <CameraRig />
+        </Suspense>
       </Canvas>
+      <RideUI />
       {flags.debug && <DebugBadge />}
     </>
   )

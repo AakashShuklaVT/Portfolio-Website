@@ -57,6 +57,7 @@ export function createWaterMaterial(depthTexture: THREE.DataTexture) {
   const foam = max(rim, bandMask)
 
   material.colorNode = mix(base, u.foam, foam)
-  material.opacityNode = max(mix(float(0.62), float(0.94), deepMix), foam)
+  // Fully opaque outside the depth map, so nothing shows through the open sea.
+  material.opacityNode = max(max(mix(float(0.62), float(1), deepMix), foam), float(1).sub(insideMap))
   return material
 }

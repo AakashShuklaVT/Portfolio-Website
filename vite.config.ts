@@ -51,5 +51,16 @@ export default defineConfig({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1500,
+    rolldownOptions: {
+      output: {
+        // Vendors change rarely; separate chunks keep them cached across deploys.
+        codeSplitting: {
+          groups: [
+            { name: 'three', test: /node_modules[\/]three[\/]/ },
+            { name: 'react', test: /node_modules[\/](react|react-dom|scheduler|@react-three|zustand|its-fine|suspend-react)[\/]/ },
+          ],
+        },
+      },
+    },
   },
 })

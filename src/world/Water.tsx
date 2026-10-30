@@ -3,8 +3,8 @@ import * as THREE from 'three/webgpu'
 import { createDepthTexture, createWaterMaterial, waterUniforms } from '../materials/waterMaterial'
 import { useWorldStore } from '../store/useWorldStore'
 
-const NEAR_SIZE = 240
-const NEAR_SEGMENTS = 120
+const NEAR_SIZE = 560
+const NEAR_SEGMENTS = 180
 
 /** A detailed animated patch around the island plus a flat far ocean that fades into the haze. */
 export function Water() {

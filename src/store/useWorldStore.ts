@@ -4,6 +4,7 @@ import { createDefaultWorld } from '../world/defaultWorld'
 import { autoScatter } from '../world/autoScatter'
 import { autoProps } from '../world/autoProps'
 import type { WorldData } from '../world/types'
+import { flags } from '../core/flags'
 
 interface WorldState {
   world: WorldData | null
@@ -24,7 +25,7 @@ export const useWorldStore = create<WorldState>((set, get) => ({
   load: async () => {
     let world: WorldData
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}data/world.json`, { cache: 'no-cache' })
+      const res = await fetch(`${import.meta.env.BASE_URL}data/world.json`, { cache: flags.edit ? 'no-cache' : 'default' })
       if (!res.ok) throw new Error(String(res.status))
       world = (await res.json()) as WorldData
     } catch {

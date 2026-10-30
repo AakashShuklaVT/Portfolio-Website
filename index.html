@@ -3,13 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f3d9b1" />
-    <title>Aakash Shukla · Portfolio Island</title>
+    <meta name="theme-color" content="#f3dcc0" />
+    <title>Aakash Shukla · Creative Developer · Portfolio Island</title>
     <meta
       name="description"
-      content="Aakash Shukla — creative developer, game developer and frontend engineer. Three.js, React Three Fiber, playable ads and HTML5 games. Ride the train around Portfolio Island."
+      content="Aakash Shukla: creative developer, game developer and frontend engineer. Three.js, React Three Fiber, WebGPU, playable ads and HTML5 games. Ride the little train around Portfolio Island."
     />
+    <meta name="author" content="Aakash Shukla" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Aakash Shukla · Portfolio Island" />
+    <meta property="og:description" content="Ride a little train around a hand-built 3D island to explore the work of creative developer Aakash Shukla." />
+    <meta property="og:image" content="/island.webp" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Aakash Shukla · Portfolio Island" />
+    <meta name="twitter:description" content="Creative developer: Three.js, R3F, WebGPU, playable ads and HTML5 games." />
+    <meta name="twitter:image" content="/island.webp" />
+
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/data/world.json" as="fetch" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,6 +33,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main style="max-width: 720px; margin: 48px auto; padding: 0 16px; font-family: system-ui, sans-serif; line-height: 1.6; color: #3b2f2a">
+        <h1>Aakash Shukla</h1>
+        <p>Creative developer · Game developer · Frontend developer</p>
+        <p>
+          I build interactive 3D for the web with Three.js and React Three Fiber, playable ads and HTML5 games. This portfolio is an interactive 3D island
+          and needs JavaScript; please enable it to ride the train.
+        </p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -32,10 +32,10 @@ function defaultStationCamera(pos: THREE.Vector3, tangent: THREE.Vector3, side: 
   const away = side.clone().negate()
   const cam = pos
     .clone()
-    .addScaledVector(away, 17)
-    .addScaledVector(tangent, -7)
-    .addScaledVector(UP, 8)
-  cam.y = Math.max(cam.y, hf.heightAt(cam.x, cam.z) + 4)
+    .addScaledVector(away, 22)
+    .addScaledVector(tangent, -10)
+    .addScaledVector(UP, 11)
+  cam.y = Math.max(cam.y, hf.heightAt(cam.x, cam.z) + 5)
   const target = pos.clone().addScaledVector(side, BUILDING_OFFSET * 0.5).addScaledVector(UP, 2)
   return { position: cam.toArray() as CameraShot['position'], target: target.toArray() as CameraShot['target'] }
 }

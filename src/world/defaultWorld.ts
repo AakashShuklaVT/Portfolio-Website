@@ -71,7 +71,7 @@ export function createDefaultWorld(): WorldData {
       peakHeight: 30,
       profilePower: 1.1,
       terraceStep: 6,
-      terraceFlatness: 0.62,
+      terraceFlatness: 0.7,
       noiseScale: 0.035,
       noiseAmount: 0.05,
       extent: 90,

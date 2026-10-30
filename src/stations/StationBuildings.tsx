@@ -24,9 +24,16 @@ export const buildingMaterials = {
 }
 
 const box = new THREE.BoxGeometry(1, 1, 1)
-// Triangular prism for gable roofs: ridge along x.
-const prism = new THREE.CylinderGeometry(1, 1, 1, 3, 1).rotateZ(Math.PI / 2).rotateX(Math.PI / 2)
-prism.scale(1, 0.5, 0.87)
+// Unit gable roof: 1 x 1 footprint, ridge along x at height 1.
+const gable = (() => {
+  const A = [-0.5, 0, 0.5], B = [0.5, 0, 0.5], C = [0.5, 1, 0], D = [-0.5, 1, 0]
+  const E = [0.5, 0, -0.5], F = [-0.5, 0, -0.5]
+  const tris = [A, B, C, A, C, D, E, F, D, E, D, C, F, A, D, B, E, C, F, E, B, F, B, A]
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3))
+  geometry.computeVertexNormals()
+  return geometry
+})()
 const cyl = new THREE.CylinderGeometry(1, 1, 1, 10)
 const cone = new THREE.ConeGeometry(1, 1, 10)
 
@@ -45,11 +52,11 @@ export function House({ w, d, h, wall = buildingMaterials.wall, roof = buildingM
   return (
     <group position={position} rotation-y={rotationY}>
       <mesh geometry={box} material={wall} position-y={h / 2} scale={[w, h, d]} castShadow receiveShadow />
-      <mesh geometry={prism} material={roof} position-y={h + d * 0.28} scale={[w + 0.5, d * 1.15, d * 0.68]} castShadow />
+      <mesh geometry={gable} material={roof} position-y={h} scale={[w + 0.5, d * 0.55, d + 0.6]} castShadow />
       <mesh geometry={box} material={buildingMaterials.woodDark} position={[0, 0.65, d / 2 + 0.01]} scale={[0.7, 1.3, 0.05]} />
       <mesh geometry={box} material={buildingMaterials.window} position={[w * 0.28, h * 0.6, d / 2 + 0.01]} scale={[0.6, 0.55, 0.05]} />
       <mesh geometry={box} material={buildingMaterials.window} position={[-w * 0.28, h * 0.6, d / 2 + 0.01]} scale={[0.6, 0.55, 0.05]} />
-      {chimney && <mesh geometry={box} material={buildingMaterials.stone} position={[w * 0.3, h + d * 0.5, -d * 0.15]} scale={[0.45, 1.1, 0.45]} castShadow />}
+      {chimney && <mesh geometry={box} material={buildingMaterials.stone} position={[w * 0.3, h + d * 0.35, -d * 0.2]} scale={[0.45, 1.1, 0.45]} castShadow />}
     </group>
   )
 }

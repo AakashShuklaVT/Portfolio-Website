@@ -7,6 +7,9 @@ import { useWorldStore } from './store/useWorldStore'
 import { Atmosphere } from './world/Atmosphere'
 import { Terrain } from './world/Terrain'
 import { Water } from './world/Water'
+import { Scatter } from './world/Scatter'
+import { Props } from './world/Props'
+import { Clouds } from './world/Clouds'
 import { Track } from './rail/Track'
 import { Train } from './rail/Train'
 import { RideController } from './rail/RideController'
@@ -32,6 +35,9 @@ export default function App() {
           <Atmosphere />
           <Terrain />
           <Water />
+          <Scatter />
+          <Props />
+          <Clouds />
           <Track />
           <StationBuildings />
           <Train />

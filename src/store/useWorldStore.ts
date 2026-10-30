@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { buildDerivedWorld, type DerivedWorld } from '../world/buildWorld'
 import { createDefaultWorld } from '../world/defaultWorld'
+import { autoScatter } from '../world/autoScatter'
+import { autoProps } from '../world/autoProps'
 import type { WorldData } from '../world/types'
 
 interface WorldState {
@@ -27,6 +29,17 @@ export const useWorldStore = create<WorldState>((set, get) => ({
       world = (await res.json()) as WorldData
     } catch {
       world = createDefaultWorld()
+    }
+    // A fresh world gets an automatic forest and station props; saved worlds keep their own.
+    if (!world.scatter.length || !world.props.length) {
+      const derived = buildDerivedWorld(world)
+      world = {
+        ...world,
+        scatter: world.scatter.length ? world.scatter : autoScatter(world, derived),
+        props: world.props.length ? world.props : autoProps(derived),
+      }
+      set({ world, derived, revision: get().revision + 1 })
+      return
     }
     get().setWorld(world)
   },

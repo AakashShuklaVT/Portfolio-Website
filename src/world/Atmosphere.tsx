@@ -24,7 +24,7 @@ export function Atmosphere() {
   useEffect(() => {
     const u = atmosphereUniforms
     const up = positionWorldDirection.y
-    scene.backgroundNode = mix(u.skyHorizon, u.skyTop, smoothstep(-0.02, 0.55, up))
+    scene.backgroundNode = mix(u.skyHorizon, u.skyTop, smoothstep(0.0, 0.32, up))
     scene.fogNode = fog(u.fogColor, rangeFogFactor(u.fogNear, u.fogFar))
     return () => {
       scene.backgroundNode = null

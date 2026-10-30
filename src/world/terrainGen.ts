@@ -43,10 +43,15 @@ export interface Heightfield {
   heights: Float32Array
   /** Path mask per vertex, 0..1. */
   path: Float32Array
+  /** Distance from each vertex to the nearest stamp centre (railway or station), capped. */
+  clearance: Float32Array
   cell: number
   heightAt: (x: number, z: number) => number
   normalYAt: (x: number, z: number) => number
+  clearanceAt: (x: number, z: number) => number
 }
+
+const CLEARANCE_CAP = 99
 
 export function generateHeightfield(p: TerrainParams, natural: HeightFn, stamps: Stamp[]): Heightfield {
   const res = p.resolution
@@ -57,6 +62,7 @@ export function generateHeightfield(p: TerrainParams, natural: HeightFn, stamps:
   const path = new Float32Array(n * n)
   const weight = new Float32Array(n * n)
   const target = new Float32Array(n * n)
+  const clearance = new Float32Array(n * n).fill(CLEARANCE_CAP)
 
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
@@ -75,9 +81,10 @@ export function generateHeightfield(p: TerrainParams, natural: HeightFn, stamps:
       for (let i = i0; i <= i1; i++) {
         const x = -extent + i * cell
         const d = Math.hypot(x - s.x, z - s.z)
+        const k = j * n + i
+        if (d < clearance[k]) clearance[k] = d
         if (d > s.outer) continue
         const w = 1 - smoothstep(s.inner, s.outer, d)
-        const k = j * n + i
         if (w > weight[k]) {
           weight[k] = w
           target[k] = s.y
@@ -114,5 +121,11 @@ export function generateHeightfield(p: TerrainParams, natural: HeightFn, stamps:
     return (2 * e) / Math.hypot(dx, 2 * e, dz)
   }
 
-  return { extent, res, heights, path, cell, heightAt, normalYAt }
+  const clearanceAt = (x: number, z: number) => {
+    const i = Math.round(clamp((x + extent) / cell, 0, res))
+    const j = Math.round(clamp((z + extent) / cell, 0, res))
+    return clearance[j * n + i]
+  }
+
+  return { extent, res, heights, path, clearance, cell, heightAt, normalYAt, clearanceAt }
 }

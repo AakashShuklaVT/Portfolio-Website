@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu'
-import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import { mulberry32 } from '../lib/noise'
+import { Kit, lumpy } from '../lib/kit'
 
 // Procedural low-poly model library. Every model is a single vertex-coloured
 // geometry so it can be instanced in one draw call. GLB models dropped into
@@ -19,141 +19,251 @@ export interface ModelDef {
   build: () => THREE.BufferGeometry
 }
 
-const tint = (geometry: THREE.BufferGeometry, color: string, jitter = 0, seed = 1) => {
-  const g = geometry.index ? geometry.toNonIndexed() : geometry
+const PI = Math.PI
+
+/** Build with the kit and return the single merged layer. */
+function single(seed: number, fn: (kit: Kit, rand: () => number) => void) {
+  const kit = new Kit(seed)
+  fn(kit, mulberry32(seed * 7 + 1))
+  return kit.build().base!
+}
+
+/** Colour faces whose centre is above `y` and facing up (moss, grass caps, snow). */
+function capTint(geometry: THREE.BufferGeometry, y: number, color: string, minUp = 0.35) {
+  const pos = geometry.attributes.position
+  const col = geometry.attributes.color
   const c = new THREE.Color(color)
-  const rand = mulberry32(seed)
-  const count = g.attributes.position.count
-  const colors = new Float32Array(count * 3)
-  for (let i = 0; i < count; i += 3) {
-    const k = 1 + (rand() - 0.5) * jitter
-    for (let v = 0; v < 3; v++) colors.set([c.r * k, c.g * k, c.b * k], (i + v) * 3)
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const d = new THREE.Vector3()
+  for (let i = 0; i < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i)
+    b.fromBufferAttribute(pos, i + 1)
+    d.fromBufferAttribute(pos, i + 2)
+    const cy = (a.y + b.y + d.y) / 3
+    const n = b.clone().sub(a).cross(d.clone().sub(a)).normalize()
+    if (cy > y && n.y > minUp) for (let k = 0; k < 3; k++) col.setXYZ(i + k, c.r, c.g, c.b)
   }
-  g.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-  g.deleteAttribute('uv')
-  g.deleteAttribute('normal')
-  return g
+  return geometry
 }
 
-/** Push vertices around (keeping shared corners together) for a hand-made look. */
-const lumpy = (geometry: THREE.BufferGeometry, amount: number, seed: number) => {
-  const base = geometry.clone()
-  base.deleteAttribute('normal')
-  base.deleteAttribute('uv')
-  const g = mergeVertices(base)
-  const rand = mulberry32(seed)
-  const pos = g.attributes.position
-  for (let i = 0; i < pos.count; i++) {
-    pos.setXYZ(i, pos.getX(i) + (rand() - 0.5) * amount, pos.getY(i) + (rand() - 0.5) * amount, pos.getZ(i) + (rand() - 0.5) * amount)
-  }
-  return g
+/** A cone with its rim pushed around a little, so tiers of a pine don't look machined. */
+const ragged = (r: number, h: number, segs: number, seed: number) => {
+  const g = lumpy(new THREE.ConeGeometry(r, h, segs, 1), r * 0.18, seed)
+  return g.translate(0, h / 2, 0)
 }
-
-const finish = (parts: THREE.BufferGeometry[]) => {
-  const merged = mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)))!
-  merged.computeVertexNormals()
-  merged.computeBoundingSphere()
-  return merged
-}
-
-const cone = (r: number, h: number, y: number, segs = 7) => new THREE.ConeGeometry(r, h, segs, 1).translate(0, y + h / 2, 0)
-const cyl = (r0: number, r1: number, h: number, y: number, segs = 6) => new THREE.CylinderGeometry(r1, r0, h, segs).translate(0, y + h / 2, 0)
 
 function pine(seed: number, tall = false) {
-  const s = tall ? 1.3 : 1
-  return finish([
-    tint(cyl(0.2, 0.16, 1.1 * s, 0), '#7a5136', 0.1, seed),
-    tint(cone(1.35, 1.7 * s, 0.9 * s), '#3f7d4a', 0.12, seed + 1),
-    tint(cone(1.05, 1.5 * s, 1.85 * s), '#4b8c50', 0.12, seed + 2),
-    tint(cone(0.72, 1.3 * s, 2.75 * s), '#5a9b56', 0.12, seed + 3),
-  ])
+  return single(seed, (kit, rand) => {
+    const s = tall ? 1.35 : 1
+    const tiers = tall ? 6 : 5
+    kit.cyl(0.13, 0.22, 1.3 * s, '#6e4630', [0, 0.6 * s, 0], undefined, 6)
+    kit.cyl(0.2, 0.3, 0.25, '#5d3b28', [0, 0.1, 0], undefined, 6)
+    const greens = ['#2f6b40', '#3a7a46', '#44884c', '#4f9452', '#5a9e56', '#66a85c']
+    for (let i = 0; i < tiers; i++) {
+      const t = i / (tiers - 1)
+      const r = (1.5 - t * 1.1) * (tall ? 0.85 : 1)
+      const h = (1.25 - t * 0.35) * s
+      const y = (0.85 + i * 0.62) * s
+      kit.add(ragged(r, h, 8, seed + i), greens[i], { position: [0, y, 0], rotation: [0, rand() * PI, 0] }, 'base', 0.14)
+    }
+  })
 }
 
 function roundTree(seed: number) {
-  const crown = lumpy(new THREE.IcosahedronGeometry(1.25, 1), 0.35, seed).scale(1, 1.05, 1).translate(0, 2.6, 0)
-  const crown2 = lumpy(new THREE.IcosahedronGeometry(0.8, 0), 0.25, seed + 9).translate(0.7, 2.1, 0.3)
-  return finish([
-    tint(cyl(0.22, 0.16, 1.8, 0), '#7a5136', 0.1, seed),
-    tint(crown, '#7fae4e', 0.14, seed + 1),
-    tint(crown2, '#8fbb57', 0.14, seed + 2),
-  ])
+  return single(seed, (kit, rand) => {
+    kit.cyl(0.14, 0.24, 1.9, '#7a5136', [0, 0.95, 0], undefined, 6)
+    kit.cyl(0.07, 0.11, 1.0, '#7a5136', [0.35, 1.9, 0.1], [0, 0, -0.7], 5)
+    kit.cyl(0.07, 0.1, 0.9, '#7a5136', [-0.3, 2.0, -0.1], [0.2, 0, 0.6], 5)
+    const greens = ['#6f9f48', '#7fae4e', '#8fbb57', '#79a84c']
+    const blobs: [number, number, number, number][] = [
+      [0, 2.75, 0, 1.15],
+      [0.75, 2.35, 0.25, 0.8],
+      [-0.7, 2.45, -0.15, 0.78],
+      [0.15, 3.35, -0.3, 0.7],
+      [-0.2, 2.2, 0.7, 0.6],
+    ]
+    blobs.forEach(([x, y, z, r], i) => {
+      const g = lumpy(new THREE.IcosahedronGeometry(r, 1), r * 0.3, seed + i)
+      kit.add(g, greens[i % greens.length], { position: [x, y, z], rotation: [rand(), rand(), rand()] }, 'base', 0.16)
+    })
+  })
+}
+
+function birch(seed: number) {
+  return single(seed, (kit, rand) => {
+    kit.cyl(0.1, 0.15, 3.2, '#efe9df', [0, 1.6, 0], undefined, 6)
+    for (let i = 0; i < 6; i++) kit.box([0.05, 0.05, 0.2], '#3d3633', [0.12 * Math.cos(i * 2.1), 0.5 + i * 0.45, 0.12 * Math.sin(i * 2.1)], [0, i * 2.1, 0])
+    kit.cyl(0.04, 0.06, 0.9, '#efe9df', [0.3, 2.4, 0], [0, 0, -0.6], 5)
+    const greens = ['#a6c35a', '#b6cf63', '#94b552']
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * PI * 2
+      const g = lumpy(new THREE.IcosahedronGeometry(0.62, 0), 0.22, seed + i)
+      kit.add(g, greens[i % 3], { position: [Math.cos(a) * 0.45, 3.0 + rand() * 0.8, Math.sin(a) * 0.45], scale: [1, 1.25, 1] }, 'base', 0.14)
+    }
+    kit.add(lumpy(new THREE.IcosahedronGeometry(0.6, 0), 0.2, seed + 9), greens[1], { position: [0, 3.9, 0], scale: [1, 1.3, 1] }, 'base', 0.14)
+  })
 }
 
 function bush(seed: number) {
-  return finish([
-    tint(lumpy(new THREE.IcosahedronGeometry(0.7, 0), 0.25, seed).scale(1, 0.7, 1).translate(0, 0.35, 0), '#6f9f48', 0.15, seed),
-    tint(lumpy(new THREE.IcosahedronGeometry(0.45, 0), 0.2, seed + 3).scale(1, 0.75, 1).translate(0.55, 0.25, 0.2), '#82ad52', 0.15, seed + 1),
-  ])
-}
-
-function rock(seed: number, color = '#b3a493') {
-  return finish([tint(lumpy(new THREE.DodecahedronGeometry(0.9, 0), 0.45, seed).scale(1, 0.7, 1.1).translate(0, 0.3, 0), color, 0.18, seed)])
-}
-
-function boat(seed: number) {
-  const hull = new THREE.CylinderGeometry(0.9, 0.55, 3.2, 6, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2)
-  hull.scale(1, 0.7, 1).translate(0, 0.55, 0)
-  return finish([
-    tint(hull, '#c9573f', 0.05, seed),
-    tint(new THREE.BoxGeometry(1.5, 0.08, 3).translate(0, 0.58, 0), '#e9d8b4', 0.05, seed),
-    tint(cyl(0.06, 0.05, 2.6, 0.6, 5), '#7a5136', 0, seed),
-    tint(new THREE.ConeGeometry(0.9, 2.0, 3).rotateY(Math.PI / 6).scale(0.08, 1, 1).translate(0, 2.0, -0.35), '#f7f2ea', 0.03, seed),
-  ])
-}
-
-function pier(seed: number) {
-  const parts: THREE.BufferGeometry[] = [tint(new THREE.BoxGeometry(2.2, 0.18, 10).translate(0, 0.7, 5), '#a87a52', 0.12, seed)]
-  for (let z = 0.5; z <= 9.5; z += 3) {
-    for (const x of [-0.95, 0.95]) parts.push(tint(cyl(0.12, 0.12, 2.4, -1.7, 5).translate(x, 0, z), '#6e4a33', 0.05, seed))
-  }
-  return finish(parts)
-}
-
-function fence(seed: number) {
-  const parts: THREE.BufferGeometry[] = []
-  for (const x of [-1.4, 0, 1.4]) parts.push(tint(new THREE.BoxGeometry(0.15, 0.9, 0.15).translate(x, 0.45, 0), '#9a6a45', 0.1, seed))
-  parts.push(tint(new THREE.BoxGeometry(3, 0.1, 0.08).translate(0, 0.65, 0), '#b07d52', 0.05, seed))
-  parts.push(tint(new THREE.BoxGeometry(3, 0.1, 0.08).translate(0, 0.35, 0), '#b07d52', 0.05, seed))
-  return finish(parts)
-}
-
-function crates(seed: number) {
-  return finish([
-    tint(new THREE.BoxGeometry(0.8, 0.8, 0.8).translate(0, 0.4, 0), '#b8874f', 0.1, seed),
-    tint(new THREE.BoxGeometry(0.6, 0.6, 0.6).rotateY(0.4).translate(0.75, 0.3, 0.2), '#a8773f', 0.1, seed + 1),
-    tint(new THREE.BoxGeometry(0.55, 0.55, 0.55).rotateY(0.2).translate(0.1, 1.08, 0.05), '#c0925a', 0.1, seed + 2),
-  ])
-}
-
-function mineCart(seed: number) {
-  return finish([
-    tint(new THREE.CylinderGeometry(0.75, 0.55, 0.8, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 1.4).translate(0, 0.75, 0), '#6b625b', 0.1, seed),
-    tint(lumpy(new THREE.IcosahedronGeometry(0.45, 0), 0.2, seed).scale(1.3, 0.6, 1.6).translate(0, 1.15, 0), '#e0b54a', 0.2, seed + 1),
-    ...[-0.5, 0.5].flatMap((z) => [-0.5, 0.5].map((x) => tint(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8).rotateZ(Math.PI / 2).translate(x, 0.2, z), '#3a3230', 0, seed))),
-  ])
+  return single(seed, (kit, rand) => {
+    const greens = ['#5f9445', '#6f9f48', '#82ad52']
+    for (let i = 0; i < 4; i++) {
+      const r = 0.38 + rand() * 0.3
+      kit.add(lumpy(new THREE.IcosahedronGeometry(r, 1), r * 0.35, seed + i), greens[i % 3], { position: [(rand() - 0.5) * 0.9, r * 0.7, (rand() - 0.5) * 0.9], scale: [1, 0.78, 1] }, 'base', 0.15)
+    }
+    for (let i = 0; i < 6; i++) kit.add(new THREE.OctahedronGeometry(0.07, 0), rand() < 0.5 ? '#f7f2ea' : '#ef6f6c', { position: [(rand() - 0.5) * 0.9, 0.55 + rand() * 0.35, (rand() - 0.5) * 0.9] })
+  })
 }
 
 function flowers(seed: number) {
-  const rand = mulberry32(seed)
-  const colors = ['#f2c14e', '#ef8a6f', '#f7f2ea', '#c98bd6']
-  const parts: THREE.BufferGeometry[] = []
-  for (let i = 0; i < 7; i++) {
-    const x = (rand() - 0.5) * 1.4
-    const z = (rand() - 0.5) * 1.4
-    parts.push(tint(cyl(0.025, 0.025, 0.35, 0, 3).translate(x, 0, z), '#5f8f4e', 0, seed))
-    parts.push(tint(new THREE.OctahedronGeometry(0.1, 0).translate(x, 0.4, z), colors[i % colors.length], 0.1, seed + i))
-  }
-  return finish(parts)
+  return single(seed, (kit, rand) => {
+    const colors = ['#f2c14e', '#ef8a6f', '#f7f2ea', '#c98bd6', '#ff9f43', '#7fb6e8']
+    for (let i = 0; i < 9; i++) {
+      const x = (rand() - 0.5) * 1.5
+      const z = (rand() - 0.5) * 1.5
+      const h = 0.25 + rand() * 0.25
+      kit.cyl(0.02, 0.025, h, '#5f8f4e', [x, h / 2, z], undefined, 3)
+      kit.box([0.14, 0.02, 0.06], '#6f9f48', [x + 0.05, h * 0.4, z], [0, rand() * PI, 0.4])
+      const c = colors[Math.floor(rand() * colors.length)]
+      for (let p = 0; p < 4; p++) {
+        const a = (p / 4) * PI * 2
+        kit.add(new THREE.OctahedronGeometry(0.06, 0).scale(1, 0.4, 1), c, { position: [x + Math.cos(a) * 0.06, h + 0.02, z + Math.sin(a) * 0.06] })
+      }
+      kit.sphere(0.035, '#f2c14e', [x, h + 0.04, z], 1, 0)
+    }
+  })
+}
+
+function grass(seed: number) {
+  return single(seed, (kit, rand) => {
+    const greens = ['#7fb350', '#8fbf58', '#6ea347', '#9cc865']
+    for (let i = 0; i < 9; i++) {
+      const x = (rand() - 0.5) * 0.7
+      const z = (rand() - 0.5) * 0.7
+      const h = 0.3 + rand() * 0.35
+      kit.add(new THREE.ConeGeometry(0.05, h, 3).translate(0, h / 2, 0), greens[i % 4], { position: [x, 0, z], rotation: [(rand() - 0.5) * 0.6, rand() * PI, (rand() - 0.5) * 0.6] })
+    }
+  })
+}
+
+function reeds(seed: number) {
+  return single(seed, (kit, rand) => {
+    for (let i = 0; i < 8; i++) {
+      const x = (rand() - 0.5) * 0.9
+      const z = (rand() - 0.5) * 0.9
+      const h = 0.8 + rand() * 0.7
+      kit.cyl(0.015, 0.03, h, '#7d9a4a', [x, h / 2, z], [(rand() - 0.5) * 0.3, 0, (rand() - 0.5) * 0.3], 3)
+      if (i % 2) kit.cyl(0.05, 0.05, 0.22, '#6b4a33', [x, h - 0.05, z], undefined, 5)
+    }
+  })
+}
+
+function boat(seed: number) {
+  return single(seed, (kit) => {
+    // hull: a lathed half-shell, wider at the gunwale
+    const hull = new THREE.CylinderGeometry(0.95, 0.5, 3.6, 8, 1, false, 0, PI).rotateZ(PI / 2).rotateY(PI / 2).scale(1, 0.75, 1)
+    kit.add(hull, '#c9573f', { position: [0, 0.62, 0] })
+    kit.add(new THREE.CylinderGeometry(0.97, 0.97, 3.62, 8, 1, true, 0, PI).rotateZ(PI / 2).rotateY(PI / 2).scale(1, 0.08, 1), '#f7f2ea', { position: [0, 0.6, 0] })
+    kit.box([1.6, 0.08, 3.4], '#e9d8b4', [0, 0.64, 0])
+    kit.cone(0.55, 0.9, '#c9573f', [0, 0.25, 1.7], 4, [PI / 2, PI / 4, 0])
+    // cabin
+    kit.box([1.0, 0.6, 1.0], '#f7f2ea', [0, 0.98, -0.7])
+    kit.box([1.1, 0.08, 1.15], '#3f8c84', [0, 1.32, -0.7])
+    kit.box([0.6, 0.25, 0.05], '#2b3640', [0, 1.05, -0.18])
+    // mast, boom and sail
+    kit.cyl(0.05, 0.06, 3.0, '#7a5136', [0, 2.1, 0.4], undefined, 5)
+    kit.cyl(0.035, 0.035, 1.6, '#7a5136', [0, 1.25, 1.1], [PI / 2, 0, 0], 4)
+    kit.add(new THREE.ConeGeometry(1.0, 2.4, 3).rotateY(PI / 6).scale(0.06, 1, 0.75), '#fbf6ee', { position: [0, 2.45, 1.0] })
+    kit.add(new THREE.ConeGeometry(0.15, 0.4, 3).rotateZ(-PI / 2).scale(1, 1, 0.2), '#cf4a3c', { position: [0.18, 3.55, 0.4] })
+  })
+}
+
+function pier(seed: number) {
+  return single(seed, (kit, rand) => {
+    for (let z = 0.2; z < 10; z += 0.42) kit.box([2.3, 0.1, 0.38], rand() < 0.5 ? '#b08256' : '#a07650', [(rand() - 0.5) * 0.06, 0.72, z])
+    for (const x of [-1.05, 1.05]) kit.box([0.1, 0.14, 10], '#7a5136', [x, 0.6, 5])
+    for (let z = 0.4; z <= 9.8; z += 2.35) {
+      for (const x of [-1.05, 1.05]) {
+        kit.cyl(0.13, 0.13, 3.0, '#6e4a33', [x, -0.75, z], undefined, 6)
+        kit.cyl(0.08, 0.08, 0.9, '#6e4a33', [x, 1.15, z], undefined, 5)
+      }
+    }
+    for (const x of [-1.05, 1.05]) kit.cyl(0.03, 0.03, 9.4, '#d8c08a', [x, 1.45, 5.1], [PI / 2, 0, 0], 4)
+    kit.cyl(0.05, 0.06, 2.2, '#3d3a39', [0.9, 1.8, 9.6], undefined, 6)
+    kit.box([0.3, 0.36, 0.3], '#ffd38a', [0.9, 3.0, 9.6])
+    kit.add(new THREE.TorusGeometry(0.28, 0.08, 5, 10), '#cf4a3c', { position: [-1.12, 1.15, 6], rotation: [0, PI / 2, 0] })
+  })
+}
+
+function fence(seed: number) {
+  return single(seed, (kit, rand) => {
+    for (const x of [-1.4, 0, 1.4]) kit.box([0.15, 0.95, 0.15], '#9a6a45', [x, 0.47, 0], [0, 0, (rand() - 0.5) * 0.08])
+    kit.box([3, 0.1, 0.08], '#b07d52', [0, 0.7, 0], [0, 0, (rand() - 0.5) * 0.05])
+    kit.box([3, 0.1, 0.08], '#b07d52', [0, 0.38, 0], [0, 0, (rand() - 0.5) * 0.05])
+  })
+}
+
+function crates(seed: number) {
+  return single(seed, (kit) => {
+    const crate = (p: [number, number, number], s: number, r: number) =>
+      kit.group({ position: p, rotation: [0, r, 0] }, () => {
+        kit.box([s, s, s], '#c0925a', [0, s / 2, 0])
+        kit.box([s + 0.03, 0.07, s + 0.03], '#8b5a3a', [0, s - 0.05, 0])
+        kit.box([s + 0.03, 0.07, s + 0.03], '#8b5a3a', [0, 0.05, 0])
+        kit.box([0.07, s * 1.3, s + 0.02], '#8b5a3a', [0, s / 2, 0], [0, 0, 0.78])
+      })
+    crate([0, 0, 0], 0.8, 0)
+    crate([0.82, 0, 0.2], 0.6, 0.4)
+    crate([0.1, 0.8, 0.05], 0.55, 0.2)
+    kit.cyl(0.28, 0.28, 0.7, '#9a6a45', [-0.75, 0.35, 0.35], undefined, 9)
+    kit.cyl(0.3, 0.3, 0.05, '#3d3a39', [-0.75, 0.15, 0.35], undefined, 9)
+    kit.cyl(0.3, 0.3, 0.05, '#3d3a39', [-0.75, 0.55, 0.35], undefined, 9)
+  })
+}
+
+function mineCart(seed: number) {
+  return single(seed, (kit) => {
+    kit.cyl(0.75, 0.55, 0.8, '#6b625b', [0, 0.75, 0], [0, PI / 4, 0], 4)
+    kit.add(lumpy(new THREE.IcosahedronGeometry(0.45, 0), 0.2, seed).scale(1.3, 0.6, 1.6), '#e0b54a', { position: [0, 1.15, 0] })
+    for (const z of [-0.5, 0.5]) for (const x of [-0.5, 0.5]) kit.cyl(0.2, 0.2, 0.1, '#3a3230', [x, 0.2, z], [0, 0, PI / 2], 8)
+  })
+}
+
+function mushrooms(seed: number) {
+  return single(seed, (kit, rand) => {
+    for (let i = 0; i < 4; i++) {
+      const x = (rand() - 0.5) * 0.6
+      const z = (rand() - 0.5) * 0.6
+      const h = 0.15 + rand() * 0.15
+      kit.cyl(0.04, 0.05, h, '#f2e3c6', [x, h / 2, z], undefined, 5)
+      kit.sphere(0.12 + rand() * 0.05, '#d6493a', [x, h, z], [1, 0.55, 1], 0)
+    }
+  })
+}
+
+/** A lumpy boulder with a smaller one at its foot; up-facing tops are mossy. */
+function mossyRock(seed: number, color: string, moss: string) {
+  const g = single(seed, (kit) => {
+    const body = lumpy(new THREE.DodecahedronGeometry(0.9, 1), 0.42, seed).scale(1.1, 0.72, 1)
+    kit.add(body, color, { position: [0, 0.32, 0] }, 'base', 0.2)
+    kit.add(lumpy(new THREE.DodecahedronGeometry(0.45, 0), 0.2, seed + 3), color, { position: [0.85, 0.15, 0.3] }, 'base', 0.2)
+  })
+  return capTint(g, 0.55, moss, 0.6)
 }
 
 export const MODELS: ModelDef[] = [
   { id: 'pine', label: 'Pine', tags: ['tree'], wind: true, height: 4, build: () => pine(11) },
   { id: 'pine-tall', label: 'Tall pine', tags: ['tree'], wind: true, height: 5.3, build: () => pine(21, true) },
   { id: 'round-tree', label: 'Round tree', tags: ['tree'], wind: true, height: 3.8, build: () => roundTree(31) },
+  { id: 'birch', label: 'Birch', tags: ['tree'], wind: true, height: 4.4, build: () => birch(35) },
   { id: 'bush', label: 'Bush', tags: ['bush'], wind: true, height: 1, build: () => bush(41) },
   { id: 'flowers', label: 'Flowers', tags: ['bush'], wind: true, height: 0.5, build: () => flowers(45) },
-  { id: 'rock', label: 'Rock', tags: ['rock'], wind: false, height: 1, build: () => rock(51) },
-  { id: 'rock-dark', label: 'Dark rock', tags: ['rock'], wind: false, height: 1, build: () => rock(61, '#948473') },
+  { id: 'grass', label: 'Grass tuft', tags: ['bush'], wind: true, height: 0.6, build: () => grass(47) },
+  { id: 'reeds', label: 'Reeds', tags: ['bush', 'water'], wind: true, height: 1.3, build: () => reeds(48) },
+  { id: 'mushrooms', label: 'Toadstools', tags: ['bush'], wind: false, height: 0.4, build: () => mushrooms(49) },
+  { id: 'rock', label: 'Rock', tags: ['rock'], wind: false, height: 1, build: () => mossyRock(51, '#b3a493', '#8fa85a') },
+  { id: 'rock-dark', label: 'Dark rock', tags: ['rock'], wind: false, height: 1, build: () => mossyRock(61, '#948473', '#7f9a50') },
   { id: 'boat', label: 'Sail boat', tags: ['prop', 'water'], wind: false, height: 3, build: () => boat(71) },
   { id: 'pier', label: 'Pier', tags: ['prop', 'water'], wind: false, height: 1, build: () => pier(81) },
   { id: 'fence', label: 'Fence', tags: ['prop'], wind: false, height: 1, build: () => fence(91) },

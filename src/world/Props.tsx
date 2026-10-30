@@ -3,6 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
 import { getNatureMaterial } from '../materials/natureMaterials'
 import { useWorldStore } from '../store/useWorldStore'
+import { useEditorMode } from '../store/useEditorMode'
+import { flags } from '../core/flags'
 import { MODEL_MAP, getModelGeometry } from './models'
 import type { PropInstance } from './types'
 
@@ -12,7 +14,7 @@ function Prop({ prop }: { prop: PropInstance }) {
   const floats = def?.tags.includes('water') && prop.model !== 'pier'
 
   useFrame(({ clock }) => {
-    if (!floats || !ref.current) return
+    if (!floats || !ref.current || (flags.edit && useEditorMode.getState().mode === 'edit')) return
     const t = clock.elapsedTime + prop.position[0] * 0.3
     ref.current.position.y = prop.position[1] + Math.sin(t * 1.2) * 0.12
     ref.current.rotation.z = Math.sin(t * 0.9) * 0.05

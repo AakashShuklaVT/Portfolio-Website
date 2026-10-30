@@ -1,0 +1,58 @@
+import type { AtmosphereData } from './types'
+
+type Preset = Omit<AtmosphereData, 'tiltShift'>
+
+export const ATMOSPHERE_PRESETS: Record<'morning' | 'noon' | 'sunset' | 'night', Preset> = {
+  morning: {
+    sunDirection: [-0.7, 0.45, 0.55],
+    sunColor: '#ffe2bd',
+    sunIntensity: 2.2,
+    ambientSky: '#ffe9d6',
+    ambientGround: '#8aa27a',
+    ambientIntensity: 1.2,
+    skyTop: '#9fcbe6',
+    skyHorizon: '#fde3cf',
+    fogColor: '#f6dfcf',
+    fogNear: 110,
+    fogFar: 320,
+  },
+  noon: {
+    sunDirection: [0.55, 0.75, 0.38],
+    sunColor: '#fff1d9',
+    sunIntensity: 2.6,
+    ambientSky: '#fff4e0',
+    ambientGround: '#86a46e',
+    ambientIntensity: 1.25,
+    skyTop: '#8cc6e8',
+    skyHorizon: '#fbe3c4',
+    fogColor: '#f3dcc0',
+    fogNear: 120,
+    fogFar: 330,
+  },
+  sunset: {
+    sunDirection: [0.85, 0.22, -0.45],
+    sunColor: '#ffb27a',
+    sunIntensity: 2.4,
+    ambientSky: '#ffc9a8',
+    ambientGround: '#7a6a7e',
+    ambientIntensity: 1.05,
+    skyTop: '#7f8fc9',
+    skyHorizon: '#ffb98c',
+    fogColor: '#f2b796',
+    fogNear: 100,
+    fogFar: 300,
+  },
+  night: {
+    sunDirection: [-0.4, 0.6, -0.5],
+    sunColor: '#a9c0ff',
+    sunIntensity: 0.55,
+    ambientSky: '#5a6aa8',
+    ambientGround: '#232b45',
+    ambientIntensity: 0.75,
+    skyTop: '#121a3a',
+    skyHorizon: '#3b4778',
+    fogColor: '#2b3560',
+    fogNear: 90,
+    fogFar: 280,
+  },
+}

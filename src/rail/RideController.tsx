@@ -6,6 +6,8 @@ import { trainRuntime } from './trainRuntime'
 import { TUNNEL } from './TrackPath'
 import { TRAIN_LENGTH } from './Train'
 import { WHEEL_RADIUS } from './TrainModels'
+import { useEditorMode } from '../store/useEditorMode'
+import { flags } from '../core/flags'
 
 export const RIDE = {
   cruise: 9,
@@ -46,8 +48,18 @@ export function RideController() {
     const inTunnel = track.kindAt(rt.distance - TRAIN_LENGTH * 0.5) === TUNNEL && track.kindAt(rt.distance) === TUNNEL
     if (inTunnel !== ride.inTunnel) ride.setInTunnel(inTunnel)
 
+    // Editor preview: loop the track at cruising speed, ignoring stations.
+    if (flags.edit && useEditorMode.getState().mode === 'edit') {
+      rt.speed = useEditorMode.getState().previewTrain ? RIDE.cruise * (inTunnel ? RIDE.tunnelBoost : 1) : 0
+      rt.distance = track.wrap(rt.distance + rt.speed * dt)
+      rt.wheelAngle += (rt.speed * dt) / WHEEL_RADIUS
+      return
+    }
+
     if (!MOVING.has(ride.state)) {
       rt.speed = 0
+      // Waiting at the start: keep the train parked at the first station.
+      if (ride.state === 'INTRO' && derived.stations.length) rt.distance = derived.stations[0].distance
       return
     }
     const target = derived.stations.find((s) => s.def.id === ride.targetStation)

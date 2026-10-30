@@ -30,6 +30,7 @@ import { PostFX } from './core/PostFX'
 import { Steam } from './rail/Steam'
 import { Birds } from './world/Birds'
 import { Stars } from './world/Stars'
+import { SoundDriver } from './audio/SoundDriver'
 import { useEditorMode } from './store/useEditorMode'
 
 // The editor only exists in dev builds; DEV is false in production so these chunks are dropped.
@@ -77,6 +78,7 @@ export default function App() {
             <Birds />
           </Reveal>
           <WarmUp />
+          <SoundDriver />
           <PostFX />
           <RideController />
           {!editing && <CameraRig />}

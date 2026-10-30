@@ -8,6 +8,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { useUiStore } from '../store/useUiStore'
 import { useWorldStore } from '../store/useWorldStore'
 import { IconMap, IconSettings, IconSoundOff, IconSoundOn } from './icons'
+import type { TimeOfDay } from '../world/timeOfDay'
 
 /** Top bar: name, route map, sound and settings. */
 export function Hud() {
@@ -87,14 +88,32 @@ function RouteMap() {
   )
 }
 
+const TIMES: [TimeOfDay, string][] = [
+  ['day', 'Day'],
+  ['sunset', 'Sunset'],
+  ['night', 'Night'],
+  ['auto', 'My time'],
+]
+
 function Settings() {
   const reduced = useSettingsStore((s) => s.reducedMotion)
   const setReduced = useSettingsStore((s) => s.setReducedMotion)
   const backend = useAppStore((s) => s.backend)
   const tier = useAppStore((s) => s.quality?.tier)
   const setLiteOpen = useUiStore((s) => s.setLiteOpen)
+  const timeOfDay = useSettingsStore((s) => s.timeOfDay)
+  const setTimeOfDay = useSettingsStore((s) => s.setTimeOfDay)
   return (
     <div className="popover settings" role="dialog" aria-label="Settings">
+      <fieldset className="segmented">
+        <legend>Time of day</legend>
+        {TIMES.map(([value, label]) => (
+          <label key={value} className={timeOfDay === value ? 'on' : ''}>
+            <input type="radio" name="time-of-day" value={value} checked={timeOfDay === value} onChange={() => setTimeOfDay(value)} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
       <label className="toggle">
         <input type="checkbox" checked={reduced} onChange={(e) => setReduced(e.target.checked)} />
         <span>Reduced motion</span>

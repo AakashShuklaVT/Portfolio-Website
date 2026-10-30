@@ -1,3 +1,5 @@
+import * as THREE from 'three/webgpu'
+
 /**
  * Per-frame train state. Lives outside React so the render loop can
  * mutate it without causing re-renders.
@@ -11,4 +13,6 @@ export const trainRuntime = {
   stateTime: 0,
   /** Accumulated wheel rotation in radians. */
   wheelAngle: 0,
+  /** World position of the locomotive chimney top (steam emitter). */
+  chimney: new THREE.Vector3(),
 }

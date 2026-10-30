@@ -19,7 +19,7 @@ export const trainMaterials = {
   cream: mat('#f2e3c6'),
   teal: mat('#2f8f83'),
   mustard: mat('#e2a93b'),
-  window: mat('#2b3640', { roughness: 0.2, metalness: 0.2 }),
+  window: mat('#2b3640', { roughness: 0.2, metalness: 0.2, emissive: '#ffcf7a', emissiveIntensity: 0 }),
   lamp: new THREE.MeshBasicNodeMaterial({ color: '#fff3c4' }),
   wheel: mat('#5b3b33', { roughness: 0.5, metalness: 0.4 }),
 }

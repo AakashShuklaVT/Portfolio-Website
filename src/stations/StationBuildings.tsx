@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useUiStore } from '../store/useUiStore'
 import { useSettingsStore } from '../store/useSettingsStore'
+import { nightRuntime } from '../world/timeOfDay'
 import * as THREE from 'three/webgpu'
 import { Html } from '@react-three/drei'
 import { useWorldStore } from '../store/useWorldStore'
@@ -86,8 +87,10 @@ function Lighthouse({ position }: { position: THREE.Vector3 }) {
     const since = (performance.now() - useUiStore.getState().signalAt) / 1000
     const flashing = useUiStore.getState().signalAt > 0 && since < 3.5
     const pulse = flashing ? 0.5 + 0.5 * Math.sin(since * 14) : 0
-    glass.emissiveIntensity = 1.2 + pulse * 5
-    beamMaterial.opacity = 0.05 + pulse * 0.4
+    const night = nightRuntime.factor
+    glass.emissiveIntensity = 1.2 + night * 2 + pulse * 5
+    beamMaterial.opacity = 0.05 + night * 0.1 + pulse * 0.4
+    buildingMaterials.window.emissiveIntensity = 0.35 + night * 2.2
     if (beam.current && !useSettingsStore.getState().reducedMotion) beam.current.rotation.y += dt * (flashing ? 3 : 0.6)
   })
 

@@ -23,6 +23,13 @@ import { StationPanel } from './ui/StationPanel'
 import { RideTicker } from './ui/RideTicker'
 import { LiteSite } from './ui/LiteSite'
 import { DebugBadge } from './ui/DebugBadge'
+import { Loader } from './ui/Loader'
+import { WarmUp } from './core/WarmUp'
+import { Reveal } from './world/Reveal'
+import { PostFX } from './core/PostFX'
+import { Steam } from './rail/Steam'
+import { Birds } from './world/Birds'
+import { Stars } from './world/Stars'
 import { useEditorMode } from './store/useEditorMode'
 
 // The editor only exists in dev builds; DEV is false in production so these chunks are dropped.
@@ -52,14 +59,25 @@ export default function App() {
       >
         <Suspense fallback={null}>
           <Atmosphere />
-          <Terrain />
+          <Stars />
+          <Reveal mode="rise" duration={1.6}>
+            <Terrain />
+            <Track />
+            <Scatter />
+            <Props />
+          </Reveal>
           <Water />
-          <Scatter />
-          <Props />
-          <Clouds />
-          <Track />
-          <StationBuildings />
-          <Train />
+          <Reveal mode="drop" delay={1.2} duration={1}>
+            <StationBuildings />
+            <Train />
+          </Reveal>
+          <Steam />
+          <Reveal mode="pop" delay={1.6} duration={1.2}>
+            <Clouds />
+            <Birds />
+          </Reveal>
+          <WarmUp />
+          <PostFX />
           <RideController />
           {!editing && <CameraRig />}
           {flags.edit && EditorScene && <EditorScene />}
@@ -71,6 +89,7 @@ export default function App() {
         <StationPanel />
         <RideTicker />
       </div>
+      <Loader />
       {liteOpen && <LiteSite canGoBack />}
       {flags.edit && EditorPanels && (
         <Suspense fallback={null}>

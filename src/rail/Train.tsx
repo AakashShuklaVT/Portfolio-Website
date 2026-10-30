@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
 import { useWorldStore } from '../store/useWorldStore'
 import { trainRuntime } from './trainRuntime'
-import { CAR_GAP, COACH_LENGTH, Coach, ENGINE_LENGTH, Locomotive, WHEEL_RADIUS } from './TrainModels'
+import { CAR_GAP, COACH_LENGTH, Coach, ENGINE_LENGTH, Locomotive, WHEEL_RADIUS, trainMaterials } from './TrainModels'
+import { nightRuntime } from '../world/timeOfDay'
 
 const COACHES = 3
 /** Bogies sit this far in from each end of a car. */
@@ -29,6 +30,7 @@ export const TRAIN_LENGTH = CAR_LAYOUT[CAR_LAYOUT.length - 1].centreOffset + COA
 
 const front = new THREE.Vector3()
 const rear = new THREE.Vector3()
+const CHIMNEY_TOP = new THREE.Vector3(0, 3.3, 1.85)
 
 export function Train() {
   const track = useWorldStore((s) => s.derived?.track)
@@ -48,6 +50,12 @@ export function Train() {
       group.position.addVectors(front, rear).multiplyScalar(0.5)
       group.lookAt(front)
     })
+    const engine = carRefs.current[0]
+    if (engine) {
+      engine.updateMatrixWorld()
+      trainRuntime.chimney.copy(CHIMNEY_TOP).applyMatrix4(engine.matrixWorld)
+    }
+    trainMaterials.window.emissiveIntensity = nightRuntime.factor * 1.4
     const angle = trainRuntime.wheelAngle
     wheels.current.forEach((w) => (w.rotation.x = (angle * WHEEL_RADIUS) / w.userData.radius))
   })

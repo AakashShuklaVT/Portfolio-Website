@@ -1,8 +1,11 @@
 import { create } from 'zustand'
+import type { TimeOfDay } from '../world/timeOfDay'
 
 interface SettingsState {
   reducedMotion: boolean
   sound: boolean
+  timeOfDay: TimeOfDay
+  setTimeOfDay: (t: TimeOfDay) => void
   setReducedMotion: (v: boolean) => void
   setSound: (v: boolean) => void
 }
@@ -17,7 +20,7 @@ function loadSaved(): Partial<SettingsState> {
   }
 }
 
-function save(state: Pick<SettingsState, 'reducedMotion' | 'sound'>) {
+function save(state: Pick<SettingsState, 'reducedMotion' | 'timeOfDay'>) {
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
   } catch {
@@ -31,9 +34,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   reducedMotion: saved.reducedMotion ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   // Sound is off until the visitor opts in.
   sound: false,
+  timeOfDay: saved.timeOfDay ?? 'day',
+  setTimeOfDay: (timeOfDay) => {
+    set({ timeOfDay })
+    save({ reducedMotion: get().reducedMotion, timeOfDay })
+  },
   setReducedMotion: (reducedMotion) => {
     set({ reducedMotion })
-    save({ reducedMotion, sound: get().sound })
+    save({ reducedMotion, timeOfDay: get().timeOfDay })
   },
   setSound: (sound) => set({ sound }),
 }))

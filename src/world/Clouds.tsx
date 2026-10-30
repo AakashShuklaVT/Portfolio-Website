@@ -4,6 +4,7 @@ import * as THREE from 'three/webgpu'
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import { mulberry32 } from '../lib/noise'
 import { useSettingsStore } from '../store/useSettingsStore'
+import { nightRuntime } from './timeOfDay'
 
 const CLOUD_COUNT = 9
 
@@ -52,6 +53,7 @@ export function Clouds() {
   }, [])
 
   useFrame((_, dt) => {
+    material.emissiveIntensity = 0.35 * (1 - nightRuntime.factor)
     if (!group.current || useSettingsStore.getState().reducedMotion) return
     group.current.rotation.y += dt * 0.012
   })

@@ -28,6 +28,7 @@ import { Loader } from './ui/Loader'
 import { WarmUp } from './core/WarmUp'
 import { Reveal } from './world/Reveal'
 import { PostFX } from './core/PostFX'
+import { AdaptiveQuality } from './core/AdaptiveQuality'
 import { Steam } from './rail/Steam'
 import { Birds } from './world/Birds'
 import { Stars } from './world/Stars'
@@ -53,7 +54,7 @@ export default function App() {
       <Canvas
         className="scene"
         gl={createRenderer}
-        dpr={[1, 2]}
+        dpr={1}
         shadows="percentage"
         frameloop={liteOpen ? 'never' : 'always'}
         camera={{ position: [95, 85, 125], fov: 38, near: 0.5, far: 900 }}
@@ -80,6 +81,7 @@ export default function App() {
             <Birds />
           </Reveal>
           <WarmUp />
+          <AdaptiveQuality />
           <SoundDriver />
           <PostFX />
           <RideController />

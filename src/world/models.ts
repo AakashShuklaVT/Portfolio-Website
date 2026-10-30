@@ -16,6 +16,8 @@ export interface ModelDef {
   wind: boolean
   /** Rough height, used to normalise wind sway. */
   height: number
+  /** Casts shadows (off for small ground cover, which would only cost a shadow pass). */
+  shadow?: boolean
   build: () => THREE.BufferGeometry
 }
 
@@ -84,7 +86,7 @@ function roundTree(seed: number) {
       [-0.2, 2.2, 0.7, 0.6],
     ]
     blobs.forEach(([x, y, z, r], i) => {
-      const g = lumpy(new THREE.IcosahedronGeometry(r, 1), r * 0.3, seed + i)
+      const g = lumpy(new THREE.IcosahedronGeometry(r, i === 0 ? 1 : 0), r * 0.3, seed + i)
       kit.add(g, greens[i % greens.length], { position: [x, y, z], rotation: [rand(), rand(), rand()] }, 'base', 0.16)
     })
   })
@@ -110,7 +112,7 @@ function bush(seed: number) {
     const greens = ['#5f9445', '#6f9f48', '#82ad52']
     for (let i = 0; i < 4; i++) {
       const r = 0.38 + rand() * 0.3
-      kit.add(lumpy(new THREE.IcosahedronGeometry(r, 1), r * 0.35, seed + i), greens[i % 3], { position: [(rand() - 0.5) * 0.9, r * 0.7, (rand() - 0.5) * 0.9], scale: [1, 0.78, 1] }, 'base', 0.15)
+      kit.add(lumpy(new THREE.IcosahedronGeometry(r, 0), r * 0.3, seed + i), greens[i % 3], { position: [(rand() - 0.5) * 0.9, r * 0.7, (rand() - 0.5) * 0.9], scale: [1, 0.78, 1] }, 'base', 0.15)
     }
     for (let i = 0; i < 6; i++) kit.add(new THREE.OctahedronGeometry(0.07, 0), rand() < 0.5 ? '#f7f2ea' : '#ef6f6c', { position: [(rand() - 0.5) * 0.9, 0.55 + rand() * 0.35, (rand() - 0.5) * 0.9] })
   })
@@ -125,12 +127,8 @@ function flowers(seed: number) {
       const h = 0.25 + rand() * 0.25
       kit.cyl(0.02, 0.025, h, '#5f8f4e', [x, h / 2, z], undefined, 3)
       kit.box([0.14, 0.02, 0.06], '#6f9f48', [x + 0.05, h * 0.4, z], [0, rand() * PI, 0.4])
-      const c = colors[Math.floor(rand() * colors.length)]
-      for (let p = 0; p < 4; p++) {
-        const a = (p / 4) * PI * 2
-        kit.add(new THREE.OctahedronGeometry(0.06, 0).scale(1, 0.4, 1), c, { position: [x + Math.cos(a) * 0.06, h + 0.02, z + Math.sin(a) * 0.06] })
-      }
-      kit.sphere(0.035, '#f2c14e', [x, h + 0.04, z], 1, 0)
+      kit.add(new THREE.OctahedronGeometry(0.11, 0).scale(1, 0.45, 1), colors[Math.floor(rand() * colors.length)], { position: [x, h + 0.02, z], rotation: [0, rand() * PI, 0] })
+      kit.add(new THREE.OctahedronGeometry(0.045, 0), '#f2c14e', { position: [x, h + 0.06, z] })
     }
   })
 }
@@ -258,10 +256,10 @@ export const MODELS: ModelDef[] = [
   { id: 'round-tree', label: 'Round tree', tags: ['tree'], wind: true, height: 3.8, build: () => roundTree(31) },
   { id: 'birch', label: 'Birch', tags: ['tree'], wind: true, height: 4.4, build: () => birch(35) },
   { id: 'bush', label: 'Bush', tags: ['bush'], wind: true, height: 1, build: () => bush(41) },
-  { id: 'flowers', label: 'Flowers', tags: ['bush'], wind: true, height: 0.5, build: () => flowers(45) },
-  { id: 'grass', label: 'Grass tuft', tags: ['bush'], wind: true, height: 0.6, build: () => grass(47) },
-  { id: 'reeds', label: 'Reeds', tags: ['bush', 'water'], wind: true, height: 1.3, build: () => reeds(48) },
-  { id: 'mushrooms', label: 'Toadstools', tags: ['bush'], wind: false, height: 0.4, build: () => mushrooms(49) },
+  { id: 'flowers', label: 'Flowers', tags: ['bush'], wind: true, height: 0.5, shadow: false, build: () => flowers(45) },
+  { id: 'grass', label: 'Grass tuft', tags: ['bush'], wind: true, height: 0.6, shadow: false, build: () => grass(47) },
+  { id: 'reeds', label: 'Reeds', tags: ['bush', 'water'], wind: true, height: 1.3, shadow: false, build: () => reeds(48) },
+  { id: 'mushrooms', label: 'Toadstools', tags: ['bush'], wind: false, height: 0.4, shadow: false, build: () => mushrooms(49) },
   { id: 'rock', label: 'Rock', tags: ['rock'], wind: false, height: 1, build: () => mossyRock(51, '#b3a493', '#8fa85a') },
   { id: 'rock-dark', label: 'Dark rock', tags: ['rock'], wind: false, height: 1, build: () => mossyRock(61, '#948473', '#7f9a50') },
   { id: 'boat', label: 'Sail boat', tags: ['prop', 'water'], wind: false, height: 3, build: () => boat(71) },

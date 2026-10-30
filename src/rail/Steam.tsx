@@ -33,6 +33,9 @@ interface Particle {
 }
 
 const night = uniform(0)
+const tmp = new THREE.Vector3()
+const left = new THREE.Vector3()
+const byDepth = (a: Particle, b: Particle) => b.depth - a.depth
 
 function createMaterial(posAttr: THREE.InstancedBufferAttribute, dataAttr: THREE.InstancedBufferAttribute) {
   // Typed as vec4 for TSL's swizzles (the typings only know the attribute as Node<string>).
@@ -93,6 +96,7 @@ export function Steam() {
   const lastTravelled = useRef(trainRuntime.travelled)
   const chuffCooldown = useRef(0)
   const camPos = useRef(new THREE.Vector3())
+  const sortBuffer = useRef<Particle[]>([])
 
   const spawn = (init: (p: Particle) => void) => {
     const list = particles.current
@@ -127,7 +131,7 @@ export function Steam() {
         const puffs = 2 + Math.round(strength * 2)
         for (let i = 0; i < puffs; i++) {
           spawn((p) => {
-            p.pos.copy(rt.chimney).add(new THREE.Vector3((Math.random() - 0.5) * 0.25, Math.random() * 0.2, (Math.random() - 0.5) * 0.25))
+            p.pos.copy(rt.chimney).add(tmp.set((Math.random() - 0.5) * 0.25, Math.random() * 0.2, (Math.random() - 0.5) * 0.25))
             p.vel
               .set((Math.random() - 0.5) * 0.9, 3.4 + strength * 2.4 + Math.random() * 1.2, (Math.random() - 0.5) * 0.9)
               .addScaledVector(rt.forward, rt.speed * 0.35)
@@ -157,18 +161,19 @@ export function Steam() {
       const ride = useRideStore.getState()
       const pulling = ride.state === 'DEPARTING' || (ride.state === 'FAST_TRAVEL' && rt.stateTime < 1.5)
       drainAcc.current += dt * (pulling ? 26 : 0)
-      const side = new THREE.Vector3().crossVectors(rt.forward, THREE.Object3D.DEFAULT_UP).normalize()
+      // cross(forward, up) points to the engine's left (local -x), where cylinder 0 is
+      const side = left.crossVectors(rt.forward, THREE.Object3D.DEFAULT_UP).normalize()
       while (drainAcc.current >= 1) {
         drainAcc.current -= 1
         const i = Math.random() < 0.5 ? 0 : 1
-        const out = i === 0 ? -1 : 1
+        const out = i === 0 ? 1 : -1
         spawn((p) => {
           p.pos.copy(rt.cylinders[i])
           p.vel
             .copy(side)
             .multiplyScalar(out * (3 + Math.random() * 1.5))
             .addScaledVector(rt.forward, 0.8 + rt.speed * 0.5)
-            .add(new THREE.Vector3(0, -0.2 + Math.random() * 0.6, 0))
+            .add(tmp.set(0, -0.2 + Math.random() * 0.6, 0))
           p.life = 0.8 + Math.random() * 0.5
           p.size0 = 0.22
           p.size1 = 1.1 + Math.random() * 0.4
@@ -199,7 +204,10 @@ export function Steam() {
     }
     list.length = write
     // Back to front, so soft edges blend over the puffs behind them.
-    const sorted = list.slice().sort((a, b) => b.depth - a.depth)
+    const sorted = sortBuffer.current
+    sorted.length = 0
+    for (const p of list) sorted.push(p)
+    sorted.sort(byDepth)
     const pa = posAttr.array as Float32Array
     const da = dataAttr.array as Float32Array
     for (let i = 0; i < sorted.length; i++) {

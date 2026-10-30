@@ -508,15 +508,9 @@ const BUILDERS: Record<StationBuilding, (kit: Kit) => void> = {
   lighthouse: lighthouseStation,
 }
 
-const cache = new Map<StationBuilding, ReturnType<Kit['build']>>()
-export function getStationGeometry(type: StationBuilding) {
-  let g = cache.get(type)
-  if (!g) {
-    const kit = new Kit(type.length * 97)
-    BUILDERS[type](kit)
-    cache.set(type, (g = kit.build()))
-  }
-  return g
+/** Adds a station's architecture to a kit (in the kit's current group space). */
+export function buildStation(kit: Kit, type: StationBuilding) {
+  BUILDERS[type](kit)
 }
 
 /** Local position and radius of the mine headframe's winding wheel (animated separately). */

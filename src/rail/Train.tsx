@@ -64,7 +64,7 @@ function CarMeshes({ index }: { index: number }) {
   return (
     <>
       {layers.base && <mesh geometry={layers.base} material={trainMaterials.base} castShadow receiveShadow />}
-      {layers.metal && <mesh geometry={layers.metal} material={trainMaterials.metal} castShadow />}
+      {layers.metal && <mesh geometry={layers.metal} material={trainMaterials.metal} />}
       {layers.glow && <mesh geometry={layers.glow} material={trainMaterials.glow} />}
     </>
   )
@@ -78,8 +78,8 @@ function Motion({ refs }: { refs: React.MutableRefObject<THREE.Object3D[]> }) {
     <>
       {[0, 1].map((side) => (
         <group key={side}>
-          <mesh ref={register(side * 3)} geometry={geo.couplingRod} material={trainMaterials.base} castShadow />
-          <mesh ref={register(side * 3 + 1)} geometry={geo.connectingRod} material={trainMaterials.base} castShadow />
+          <mesh ref={register(side * 3)} geometry={geo.couplingRod} material={trainMaterials.base} />
+          <mesh ref={register(side * 3 + 1)} geometry={geo.connectingRod} material={trainMaterials.base} />
           <mesh ref={register(side * 3 + 2)} geometry={geo.pistonRod} material={trainPlainMaterials.steel} />
         </group>
       ))}
@@ -209,7 +209,6 @@ export function Train() {
               geometry={getAxleGeometry(axle.radius, axle.spoked)}
               material={trainMaterials.base}
               position={[0, axleHeight(axle.radius), axle.z]}
-              castShadow
             />
           ))}
           {i === 0 && <Motion refs={motionRefs} />}

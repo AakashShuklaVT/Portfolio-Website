@@ -9,13 +9,11 @@ import { nightRuntime } from '../world/timeOfDay'
 import { useWorldStore } from '../store/useWorldStore'
 import type { StationRuntime } from '../world/buildWorld'
 import { useRideStore } from '../store/useRideStore'
-import { buildPlatform, platformFurniture } from './platform'
-import { LIGHTHOUSE, MINE_WHEEL, buildLighthouseGeometry, buildWheelGeometry, getStationGeometry } from './stationKits'
+import { buildPlatform, buildSignMesh, platformFurniture, type SignPlacement } from './platform'
+import { LIGHTHOUSE, MINE_WHEEL, buildLighthouseGeometry, buildStation, buildWheelGeometry } from './stationKits'
 import { kitMaterials } from '../materials/kitMaterials'
-import type { KitLayer } from '../lib/kit'
-
-const platformMaterial = new THREE.MeshStandardNodeMaterial({ color: '#d9c7a8', roughness: 0.95 })
-const edgeMaterial = new THREE.MeshStandardNodeMaterial({ color: '#f2e3c6', roughness: 0.8 })
+import { Kit, type KitLayer } from '../lib/kit'
+import type { TrackPath } from '../rail/TrackPath'
 
 function KitMeshes({ layers, shadows = true }: { layers: Partial<Record<KitLayer, THREE.BufferGeometry>>; shadows?: boolean }) {
   return (
@@ -29,53 +27,64 @@ function KitMeshes({ layers, shadows = true }: { layers: Partial<Record<KitLayer
 
 const wheelGeometry = buildWheelGeometry()
 
-function StationBuilding({ station, lighthouse }: { station: StationRuntime; lighthouse: THREE.Vector3 }) {
-  const { side, buildingPosition } = station
-  const track = useWorldStore((s) => s.derived?.track)
+/**
+ * Everything static at a stop (architecture, platform, canopy, lamps, sign
+ * posts) merged into one kit in world space: three draw calls per station.
+ */
+function buildStationScene(track: TrackPath, station: StationRuntime, lighthouse: THREE.Vector3) {
   const type = station.def.building
-  const layers = useMemo(() => getStationGeometry(type), [type])
-  const platform = useMemo(() => (track ? buildPlatform(track, station) : null), [track, station])
-  const furniture = useMemo(() => (track ? platformFurniture(track, station) : null), [track, station])
-  const wheel = useRef<THREE.Mesh>(null)
-  useEffect(
-    () => () => {
-      platform?.body.dispose()
-      platform?.edge.dispose()
-      if (furniture) Object.values(furniture.layers).forEach((g) => g?.dispose())
-    },
-    [platform, furniture],
-  )
-
   // The lighthouse stop is arranged around the tower; every other stop sits on its own plot facing the line.
-  const placement = useMemo(() => {
-    if (type === 'lighthouse') {
-      const toLine = station.position.clone().sub(lighthouse).setY(0).normalize()
-      return { position: lighthouse.clone(), yaw: Math.atan2(toLine.x, toLine.z) }
-    }
-    return { position: buildingPosition.clone().setY(buildingPosition.y - 0.3), yaw: Math.atan2(-side.x, -side.z) }
-  }, [type, station, lighthouse, buildingPosition, side])
+  let position: THREE.Vector3
+  let yaw: number
+  if (type === 'lighthouse') {
+    const toLine = station.position.clone().sub(lighthouse).setY(0).normalize()
+    position = lighthouse.clone()
+    yaw = Math.atan2(toLine.x, toLine.z)
+  } else {
+    position = station.buildingPosition.clone().setY(station.buildingPosition.y - 0.3)
+    yaw = Math.atan2(-station.side.x, -station.side.z)
+  }
+  const kit = new Kit(station.index * 13 + 5)
+  kit.group({ position: position.toArray() as [number, number, number], rotation: [0, yaw, 0] }, () => buildStation(kit, type))
+  const platform = buildPlatform(track, station)
+  kit.add(platform.body, '#d9c7a8', {}, 'base', 0.04)
+  kit.add(platform.edge, '#f2e3c6', {}, 'base', 0.02)
+  platform.body.dispose()
+  platform.edge.dispose()
+  const signs = platformFurniture(track, station, kit)
+  return { layers: kit.build(), signs, position, yaw }
+}
 
+function StationBuilding({ station, scene }: { station: StationRuntime; scene: ReturnType<typeof buildStationScene> }) {
+  const wheel = useRef<THREE.Mesh>(null)
   useFrame((_, dt) => {
     if (wheel.current && !useSettingsStore.getState().reducedMotion) wheel.current.rotation.x += dt * 0.9
   })
-
   return (
     <group name={`station-${station.def.id}`}>
-      {platform && <mesh geometry={platform.body} material={platformMaterial} castShadow receiveShadow />}
-      {platform && <mesh geometry={platform.edge} material={edgeMaterial} receiveShadow />}
-      {furniture && <KitMeshes layers={furniture.layers} />}
-      {furniture?.signs.map((s, i) => (
-        <mesh key={i} position={s.position} rotation-y={s.yaw} material={s.material}>
-          <planeGeometry args={[2.6, 0.62]} />
-        </mesh>
-      ))}
-      <group position={placement.position} rotation-y={placement.yaw}>
-        <KitMeshes layers={layers} />
-        {type === 'mine' && <mesh ref={wheel} geometry={wheelGeometry} material={kitMaterials.metal} position={MINE_WHEEL.position} castShadow />}
-      </group>
+      <KitMeshes layers={scene.layers} />
+      {station.def.building === 'mine' && (
+        <group position={scene.position} rotation-y={scene.yaw}>
+          <mesh ref={wheel} geometry={wheelGeometry} material={kitMaterials.metal} position={MINE_WHEEL.position} castShadow />
+        </group>
+      )}
       <StationLabel station={station} />
     </group>
   )
+}
+
+function StationSigns({ signs }: { signs: SignPlacement[] }) {
+  const mesh = useMemo(() => (signs.length && typeof document !== 'undefined' ? buildSignMesh(signs) : null), [signs])
+  useEffect(
+    () => () => {
+      mesh?.geometry.dispose()
+      mesh?.material.dispose()
+      mesh?.texture.dispose()
+    },
+    [mesh],
+  )
+  if (!mesh) return null
+  return <mesh geometry={mesh.geometry} material={mesh.material} />
 }
 
 // ---------------------------------------------------------------- lighthouse
@@ -184,12 +193,19 @@ export function StationBuildings() {
     if (!derived) return null
     return new THREE.Vector3(0, derived.heightfield.heightAt(0, 0) - 0.2, 0)
   }, [derived])
+  const scenes = useMemo(
+    () => (derived && lighthousePos ? derived.stations.map((s) => buildStationScene(derived.track, s, lighthousePos)) : []),
+    [derived, lighthousePos],
+  )
+  const signs = useMemo(() => scenes.flatMap((s) => s.signs), [scenes])
+  useEffect(() => () => scenes.forEach((s) => Object.values(s.layers).forEach((g) => g?.dispose())), [scenes])
   if (!derived || !lighthousePos) return null
   return (
     <group name="stations">
-      {derived.stations.map((s) => (
-        <StationBuilding key={s.def.id} station={s} lighthouse={lighthousePos} />
+      {derived.stations.map((s, i) => (
+        <StationBuilding key={s.def.id} station={s} scene={scenes[i]} />
       ))}
+      <StationSigns signs={signs} />
       <Lighthouse position={lighthousePos} />
     </group>
   )

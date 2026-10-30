@@ -37,7 +37,7 @@ function ScatterLayerMesh({ layer }: { layer: ScatterLayer }) {
     const geometry = getModelGeometry(layer.model)
     const material = getNatureMaterial(def?.wind ?? false, def?.height ?? 1)
     const instanced = new THREE.InstancedMesh(geometry, material, capacity)
-    instanced.castShadow = true
+    instanced.castShadow = def?.shadow ?? true
     instanced.receiveShadow = true
     instanced.name = `scatter:${layer.id}`
     instanced.userData.scatterLayer = layer.id

@@ -1,7 +1,7 @@
 /* ==========================================================================
    Portfolio Island: design system
    Art direction: warm editorial over a hand-made diorama. Cream paper, warm
-   ink, one terracotta accent. Fraunces for display, Instrument Sans for
+   ink, one terracotta accent. Clash Display for headings, Satoshi for
    reading, JetBrains Mono for labels, indices and data.
    ========================================================================== */
 
@@ -26,8 +26,8 @@
   --shadow-2: 0 2px 4px oklch(0.22 0.02 50 / 0.06), 0 18px 48px oklch(0.22 0.02 50 / 0.16);
 
   /* type */
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'Instrument Sans', system-ui, sans-serif;
+  --font-display: 'Clash Display', 'Satoshi', system-ui, sans-serif;
+  --font-body: 'Satoshi', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --text-hero: clamp(3.4rem, 8.4vw + 0.5rem, 8.25rem);
   --text-h2: clamp(2rem, 2.6vw + 1rem, 2.9rem);
@@ -57,6 +57,10 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body,
 #root {
@@ -80,6 +84,10 @@ input,
 textarea {
   font: inherit;
   color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  touch-action: manipulation;
 }
 
 :focus-visible {
@@ -123,17 +131,16 @@ textarea {
 }
 .display {
   font-family: var(--font-display);
-  font-optical-sizing: auto;
-  font-variation-settings: 'SOFT' 50, 'WONK' 0;
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 0.92;
   text-wrap: balance;
 }
+/* the second line of a heading: lighter weight, accent colour */
 .display em {
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
-  font-variation-settings: 'SOFT' 100, 'WONK' 1;
+  color: var(--accent);
 }
 .muted {
   color: var(--ink-3);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three/webgpu'
-import { abs, color, dot, float, length, normalView, normalize, positionGeometry, positionView, pow, smoothstep, uniform, uv, exp } from 'three/tsl'
+import { abs, color, dot, float, length, normalView, normalize, positionGeometry, positionView, pow, smoothstep, uniform, uv, exp, vertexColor } from 'three/tsl'
 import { Html } from '@react-three/drei'
 import { useUiStore } from '../store/useUiStore'
 import { useSettingsStore } from '../store/useSettingsStore'
@@ -11,16 +11,17 @@ import type { StationRuntime } from '../world/buildWorld'
 import { useRideStore } from '../store/useRideStore'
 import { buildPlatform, buildSignMesh, platformFurniture, type SignPlacement } from './platform'
 import { LIGHTHOUSE, MINE_WHEEL, buildLighthouseGeometry, buildStation, buildWheelGeometry } from './stationKits'
-import { kitMaterials } from '../materials/kitMaterials'
+import { createKitMaterials, kitMaterials, type KitMaterials } from '../materials/kitMaterials'
 import { Kit, type KitLayer } from '../lib/kit'
 import type { TrackPath } from '../rail/TrackPath'
+import { lighthouseRuntime } from './lighthouseRuntime'
 
-function KitMeshes({ layers, shadows = true }: { layers: Partial<Record<KitLayer, THREE.BufferGeometry>>; shadows?: boolean }) {
+function KitMeshes({ layers, shadows = true, materials = kitMaterials }: { layers: Partial<Record<KitLayer, THREE.BufferGeometry>>; shadows?: boolean; materials?: KitMaterials }) {
   return (
     <>
-      {layers.base && <mesh geometry={layers.base} material={kitMaterials.base} castShadow={shadows} receiveShadow />}
-      {layers.metal && <mesh geometry={layers.metal} material={kitMaterials.metal} castShadow={shadows} />}
-      {layers.glow && <mesh geometry={layers.glow} material={kitMaterials.glow} />}
+      {layers.base && <mesh geometry={layers.base} material={materials.base} castShadow={shadows} receiveShadow />}
+      {layers.metal && <mesh geometry={layers.metal} material={materials.metal} castShadow={shadows} />}
+      {layers.glow && <mesh geometry={layers.glow} material={materials.glow} />}
     </>
   )
 }
@@ -119,6 +120,13 @@ function createFlareMaterial() {
 const beamGeometry = new THREE.ConeGeometry(7, BEAM_LENGTH, 28, 1, true).rotateZ(Math.PI / 2).translate(BEAM_LENGTH / 2, 0, 0)
 const flareGeometry = new THREE.PlaneGeometry(1, 1)
 const towerLayers = buildLighthouseGeometry()
+/** The tower's lantern (and its little windows) glow on their own level, so a signal can strobe them. */
+const lampLevel = uniform(0.6)
+const towerMaterials = (() => {
+  const m = createKitMaterials()
+  m.glow.emissiveNode = vertexColor().mul(lampLevel)
+  return m
+})()
 const tmpDir = new THREE.Vector3()
 const tmpCam = new THREE.Vector3()
 const lampWorld = new THREE.Vector3()
@@ -132,6 +140,10 @@ function Lighthouse({ position }: { position: THREE.Vector3 }) {
   const camera = useThree((s) => s.camera)
   const beamMaterial = useMemo(createBeamMaterial, [])
   const flareMaterial = useMemo(createFlareMaterial, [])
+  useEffect(() => {
+    lighthouseRuntime.lamp.copy(position).y += LIGHTHOUSE.lamp
+    lighthouseRuntime.ready = true
+  }, [position])
   const spotTarget = useMemo(() => {
     const o = new THREE.Object3D()
     o.position.set(60, -14, 0)
@@ -141,28 +153,32 @@ function Lighthouse({ position }: { position: THREE.Vector3 }) {
   useFrame((_, dt) => {
     const since = (performance.now() - useUiStore.getState().signalAt) / 1000
     const flashing = useUiStore.getState().signalAt > 0 && since < 3.5
-    const pulse = flashing ? 0.5 + 0.5 * Math.sin(since * 14) : 0
+    // A strobing signal: sharp bright blinks that ease off over the flash.
+    const pulse = flashing ? Math.pow(0.5 + 0.5 * Math.sin(since * 11), 4) * (1 - (since / 3.5) * 0.4) : 0
     const night = nightRuntime.factor
     const reduced = useSettingsStore.getState().reducedMotion
     if (rotor.current) rotor.current.rotation.y += dt * (flashing ? 3 : reduced ? 0.25 : 0.55)
-    beamUniforms.intensity.value = 0.3 + night * 0.65 + pulse * 0.6
+    beamUniforms.intensity.value = 0.3 + night * 0.65 + pulse * 2
+    lampLevel.value = 0.6 + night * 2 + pulse * 7
     if (spot.current) spot.current.intensity = night * 900 + pulse * 600
 
     // The lamp flares when a beam swings round towards the camera.
     if (rotor.current && flare.current) {
       tmpDir.set(1, 0, 0).applyQuaternion(rotor.current.getWorldQuaternion(tmpQuat))
-      flare.current.getWorldPosition(lampWorld)
+      lampWorld.copy(position).y += LIGHTHOUSE.lamp
       tmpCam.copy(camera.position).sub(lampWorld).normalize()
+      // Sit the flare just outside the lantern glass, towards the viewer, so the glass never hides it.
+      flare.current.position.set(0, LIGHTHOUSE.lamp, 0).addScaledVector(tmpCam, 1.4)
       const facing = Math.max(0, Math.abs(tmpDir.x * tmpCam.x + tmpDir.z * tmpCam.z) - Math.abs(tmpCam.y) * 0.4)
       const hit = Math.pow(facing, 12)
-      flareUniforms.strength.value = (0.35 + night * 0.65) * (0.45 + hit * 1.6) + pulse
-      flare.current.scale.setScalar(2.6 + hit * 9 * (0.4 + night) + pulse * 6)
+      flareUniforms.strength.value = (0.35 + night * 0.65) * (0.45 + hit * 1.6) + pulse * 2.5
+      flare.current.scale.setScalar(2.6 + hit * 9 * (0.4 + night) + pulse * 12)
     }
   })
 
   return (
     <group position={position}>
-      <KitMeshes layers={towerLayers} />
+      <KitMeshes layers={towerLayers} materials={towerMaterials} />
       <group ref={rotor} position-y={LIGHTHOUSE.lamp}>
         <mesh geometry={beamGeometry} material={beamMaterial} renderOrder={4} />
         <mesh geometry={beamGeometry} material={beamMaterial} rotation-y={Math.PI} renderOrder={4} />

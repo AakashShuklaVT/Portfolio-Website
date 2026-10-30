@@ -87,7 +87,7 @@ export function StationPanel() {
             <IconArrow />
           </button>
         )}
-        <button className="btn btn-ghost" onClick={() => togglePopover('route')} aria-label="Route map">
+        <button className="btn btn-ghost" data-popover-toggle onClick={() => togglePopover('route')} aria-label="Route map">
           <IconMap />
         </button>
       </footer>

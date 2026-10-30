@@ -15,6 +15,8 @@ export const trainRuntime = {
   travelled: 0,
   /** World position of the locomotive chimney top (steam emitter). */
   chimney: new THREE.Vector3(),
+  /** Track distance of the chimney (to tell when it is inside a tunnel). */
+  chimneyDistance: 0,
   /** False while the chimney is hidden behind a portal gate. */
   chimneyVisible: true,
   /** World positions of the two cylinder fronts (drain-cock steam). */

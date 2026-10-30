@@ -161,7 +161,7 @@ export function buildSignMesh(signs: SignPlacement[]) {
       c.fillStyle = accent
       c.fillRect(14, y + rowH - 48, 996, 34)
       c.fillStyle = '#2b2522'
-      c.font = '600 112px Fraunces, Georgia, serif'
+      c.font = '600 112px "Clash Display", system-ui, sans-serif'
       c.textAlign = 'center'
       c.textBaseline = 'middle'
       c.fillText(name, 512, y + 104, 940)
@@ -169,7 +169,7 @@ export function buildSignMesh(signs: SignPlacement[]) {
     texture.needsUpdate = true
   }
   draw()
-  document.fonts?.ready.then(draw)
+  document.fonts?.load('600 112px "Clash Display"').then(draw, () => {})
 
   const parts = signs.map((s) => {
     const row = names.findIndex(([n]) => n === s.name)

@@ -48,7 +48,7 @@ export function IntroCard() {
           <button className="btn btn-primary" onClick={() => travelTo(stations[0].def.id)}>
             Board the train <IconArrow />
           </button>
-          <button className="btn btn-ghost" onClick={() => togglePopover('route')}>
+          <button className="btn btn-ghost" data-popover-toggle onClick={() => togglePopover('route')}>
             Jump to a stop
           </button>
         </div>

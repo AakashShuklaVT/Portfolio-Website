@@ -28,6 +28,19 @@ export function Hud() {
     return () => window.removeEventListener('keydown', onKey)
   }, [closePopover])
 
+  // A tap or click anywhere outside the open popover (the 3D scene included) closes it.
+  // Buttons that toggle a popover are left alone so they can close it themselves.
+  useEffect(() => {
+    if (!popover) return
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Element | null
+      if (target?.closest('.popover, [data-popover-toggle]')) return
+      closePopover()
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [popover, closePopover])
+
   if (!loaded) return null
   return (
     <header className={`hud ${state === 'INTRO' ? 'hud-intro' : ''}`}>
@@ -43,11 +56,11 @@ export function Hud() {
             <i />
           </span>
         </button>
-        <button className="icon-btn" aria-label="Settings" aria-expanded={popover === 'settings'} onClick={() => togglePopover('settings')}>
+        <button className="icon-btn" data-popover-toggle aria-label="Settings" aria-expanded={popover === 'settings'} onClick={() => togglePopover('settings')}>
           <IconSettings />
         </button>
         <span className="divider" aria-hidden="true" />
-        <button className="route-btn" aria-expanded={popover === 'route'} aria-label="Route map" onClick={() => togglePopover('route')}>
+        <button className="route-btn" data-popover-toggle aria-expanded={popover === 'route'} aria-label="Route map" onClick={() => togglePopover('route')}>
           <span className="route-text">Route</span>
           <span className="label">{pad2(stops)} stops</span>
           <IconMap />

@@ -10,6 +10,8 @@ import { useRideStore } from '../store/useRideStore'
 import { useWorldStore } from '../store/useWorldStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { FRAME } from '../core/frameOrder'
+import { useUiStore } from '../store/useUiStore'
+import { SIGNAL_SHOT_SECONDS, lighthouseRuntime } from '../stations/lighthouseRuntime'
 
 const UP = new THREE.Vector3(0, 1, 0)
 const desiredPos = new THREE.Vector3()
@@ -94,7 +96,25 @@ export function CameraRig() {
       return s
     }
 
-    if (ride.state === 'INTRO') {
+    // Flashing the lighthouse: frame the lantern and its beam wherever the visitor is, so the flash is seen.
+    const signalAt = useUiStore.getState().signalAt
+    const signalling = signalAt > 0 && (performance.now() - signalAt) / 1000 < SIGNAL_SHOT_SECONDS && lighthouseRuntime.ready
+
+    const follow = import.meta.env.DEV ? (window as unknown as { __follow?: THREE.Vector3 }).__follow : undefined
+    if (follow) {
+      // Dev only: close-up on any moving point (used to check the gulls).
+      desiredTarget.copy(follow)
+      desiredPos.copy(follow).add(side.set(4, 1.5, 4))
+      lambda = 8
+    } else if (signalling) {
+      const lamp = lighthouseRuntime.lamp
+      side.set(camera.position.x - lamp.x, 0, camera.position.z - lamp.z)
+      if (side.lengthSq() < 1e-4) side.set(0, 0, 1)
+      side.normalize()
+      desiredPos.copy(lamp).addScaledVector(side, 30 * lens.pullBack).addScaledVector(UP, 3)
+      desiredTarget.copy(lamp).addScaledVector(UP, -2.5)
+      lambda = 2.2
+    } else if (ride.state === 'INTRO') {
       const angle = reduced ? 0 : state.clock.elapsedTime * 0.035
       desiredTarget.fromArray(world.overview.target)
       desiredPos.fromArray(world.overview.position).sub(desiredTarget).multiplyScalar(lens.pullBack).add(desiredTarget).applyAxisAngle(UP, angle)

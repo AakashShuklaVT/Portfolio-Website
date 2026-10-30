@@ -64,7 +64,7 @@ The editor runs inside the real renderer, so what you see is what visitors get.
 - **Materials (TSL)**: terrain, water (baked depth, shore foam bands, faceted waves), GPU wind sway for instanced foliage, a sky dome, tilt-shift and vignette post-processing.
 - **Polish**: island-assembly intro after pipelines are precompiled, noise-eroded particle smoke synced to the pistons, gulls whose wing beat runs in the vertex shader, drifting clouds, a rotating lighthouse beam with a real spotlight at night, day / dusk / night or local time, and a procedural Web Audio soundscape (off until the visitor opts in).
 - **Performance**: adaptive resolution (the pixel ratio steps down while frames run under 50 fps), fixed `useFrame` order (ride, then train, then camera) so motion never judders, instancing everywhere, and shadow casting only for things big enough to need it.
-- **UI**: warm editorial design system in `src/styles.css` (oklch tokens, Fraunces / Instrument Sans / JetBrains Mono, power-4 easing, reduced-motion aware).
+- **UI**: warm editorial design system in `src/styles.css` (oklch tokens, Clash Display / Satoshi / JetBrains Mono, power-4 easing, reduced-motion aware).
 - **Accessibility**: real HTML for all content, keyboard operable, reduced-motion setting (which also honours the OS preference), and the lite HTML page.
 
 ```

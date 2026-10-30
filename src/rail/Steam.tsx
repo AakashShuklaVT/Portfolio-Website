@@ -7,12 +7,18 @@ import { useRideStore } from '../store/useRideStore'
 import { trainRuntime } from './trainRuntime'
 import { nightRuntime } from '../world/timeOfDay'
 import { DRIVER_RADIUS } from './TrainModels'
+import { useWorldStore } from '../store/useWorldStore'
+import { PORTAL, frameAt, type Frame } from './trackGeometry'
+import { TUNNEL, type TrackPath } from './TrackPath'
 
 // Soft, noise-eroded billboard puffs, simulated on the CPU (a few hundred at
 // most) and drawn in one instanced draw call, sorted back to front.
 //   chimney: a chuff of smoke on every piston stroke, dark at first and
 //            turning to white steam as it rises, drifts and spreads
 //   drains:  white jets from the cylinder cocks when the engine pulls away
+// Inside a tunnel, puffs live in track space instead: they can't rise through
+// the vault or pass the walls, so they hug the ceiling, spread along the
+// tunnel and billow out of the portals. Outside, they never sink into a hill.
 
 const STROKE = (Math.PI * 2 * DRIVER_RADIUS) / 4
 const MAX_CHUFFS_PER_SECOND = 7
@@ -30,7 +36,34 @@ interface Particle {
   /** 0 = chimney smoke, 1 = white drain steam */
   kind: number
   depth: number
+  /** In a tunnel: position and velocity along / across / above the track. */
+  confined: boolean
+  s: number
+  lat: number
+  h: number
+  vs: number
+  vlat: number
+  vh: number
+  run0: number
+  run1: number
 }
+
+/** Largest puff that fits under the vault. */
+const CONFINED_SIZE = 2.3
+
+/** Tunnel (including the portal blocks) containing track distance d, if any. */
+function tunnelAt(track: TrackPath, d: number): [number, number] | null {
+  for (const r of track.runs) {
+    if (r.kind !== TUNNEL) continue
+    const a = r.start - PORTAL.lead
+    const b = r.end + PORTAL.lead
+    if (track.ahead(a, d) <= b - a) return [a, b]
+  }
+  return null
+}
+
+const frame: Frame = { pos: new THREE.Vector3(), tangent: new THREE.Vector3(), side: new THREE.Vector3(), up: new THREE.Vector3() }
+const rel = new THREE.Vector3()
 
 const night = uniform(0)
 const tmp = new THREE.Vector3()
@@ -109,7 +142,26 @@ export function Steam() {
       ({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), age: 0, life: 1, size0: 1, size1: 1, seed: 0, alpha: 1, kind: 0, depth: 0 } as Particle)
     p.age = 0
     p.seed = Math.random()
+    p.confined = false
     init(p)
+    // Born inside a tunnel: switch to track space.
+    const track = useWorldStore.getState().derived?.track
+    const run = track && tunnelAt(track, trainRuntime.chimneyDistance)
+    if (track && run) {
+      frameAt(track, trainRuntime.chimneyDistance, frame)
+      rel.subVectors(p.pos, frame.pos)
+      p.confined = true
+      p.s = trainRuntime.chimneyDistance + rel.dot(frame.tangent)
+      p.lat = rel.dot(frame.side)
+      p.h = rel.dot(frame.up)
+      p.vs = p.vel.dot(frame.tangent)
+      p.vlat = p.vel.dot(frame.side)
+      p.vh = p.vel.dot(frame.up)
+      p.run0 = run[0]
+      p.run1 = run[1]
+      p.size1 = Math.min(p.size1, CONFINED_SIZE)
+      p.life *= 1.4
+    }
     list.push(p)
   }
 
@@ -184,6 +236,7 @@ export function Steam() {
     }
 
     // Integrate: drag towards the breeze, buoyancy for smoke, ease-out growth.
+    const derived = useWorldStore.getState().derived
     const list = particles.current
     const drag = Math.exp(-1.9 * dt)
     camPos.current.copy(state.camera.position)
@@ -195,10 +248,51 @@ export function Steam() {
         pool.current.push(p)
         continue
       }
-      p.vel.x = (p.vel.x - WIND.x) * drag + WIND.x
-      p.vel.z = (p.vel.z - WIND.z) * drag + WIND.z
-      p.vel.y = p.vel.y * Math.exp(-(p.kind ? 2.5 : 1.1) * dt) + (p.kind ? 0.5 : 0.25) * dt
-      p.pos.addScaledVector(p.vel, dt)
+      const t = p.age / p.life
+      const radius = (p.size0 + (p.size1 - p.size0) * (1 - (1 - t) * (1 - t))) * 0.5 * 0.75
+      if (p.confined && derived) {
+        // Track space: no wind underground; the vault caps the rise and the walls stop the spread.
+        p.vs *= drag
+        p.vlat *= drag
+        p.vh = p.vh * Math.exp(-(p.kind ? 2.5 : 1.1) * dt) + (p.kind ? 0.5 : 0.25) * dt
+        p.s += p.vs * dt
+        p.lat += p.vlat * dt
+        p.h += p.vh * dt
+        const latMax = Math.max(0, PORTAL.halfWidth - radius * 0.8)
+        if (Math.abs(p.lat) > latMax) {
+          p.lat = Math.sign(p.lat) * latMax
+          p.vlat *= -0.2
+        }
+        const ceiling = PORTAL.spring + Math.sqrt(Math.max(0, PORTAL.halfWidth ** 2 - p.lat * p.lat)) - radius
+        if (p.h > ceiling) {
+          // Smoke that hits the roof spreads along it.
+          p.vs += Math.sign(p.vs || 1) * Math.max(0, p.vh) * 0.6
+          p.h = Math.max(0.3, ceiling)
+          p.vh = Math.min(p.vh, 0)
+        }
+        p.h = Math.max(p.h, 0.3)
+        const track = derived.track
+        frameAt(track, p.s, frame)
+        p.pos.copy(frame.pos).addScaledVector(frame.side, p.lat).addScaledVector(frame.up, p.h)
+        // Out of a portal: back to world space, carrying its velocity.
+        if (track.ahead(p.run0, p.s) > p.run1 - p.run0) {
+          p.confined = false
+          p.vel.copy(frame.tangent).multiplyScalar(p.vs).addScaledVector(frame.side, p.vlat).addScaledVector(frame.up, p.vh)
+        }
+      } else {
+        p.vel.x = (p.vel.x - WIND.x) * drag + WIND.x
+        p.vel.z = (p.vel.z - WIND.z) * drag + WIND.z
+        p.vel.y = p.vel.y * Math.exp(-(p.kind ? 2.5 : 1.1) * dt) + (p.kind ? 0.5 : 0.25) * dt
+        p.pos.addScaledVector(p.vel, dt)
+        // Never sink into the hillside.
+        if (derived) {
+          const floor = derived.heightfield.heightAt(p.pos.x, p.pos.z) + radius * 0.5
+          if (p.pos.y < floor) {
+            p.pos.y = floor
+            p.vel.y = Math.max(p.vel.y, 0.4)
+          }
+        }
+      }
       p.depth = p.pos.distanceToSquared(camPos.current)
       list[write++] = p
     }
@@ -214,10 +308,11 @@ export function Steam() {
       const p = sorted[i]
       const t = p.age / p.life
       const grow = 1 - (1 - t) * (1 - t)
+      const size = p.size0 + (p.size1 - p.size0) * grow
       pa[i * 4] = p.pos.x
       pa[i * 4 + 1] = p.pos.y
       pa[i * 4 + 2] = p.pos.z
-      pa[i * 4 + 3] = p.size0 + (p.size1 - p.size0) * grow
+      pa[i * 4 + 3] = p.confined ? Math.min(size, CONFINED_SIZE) : size
       da[i * 4] = t
       da[i * 4 + 1] = p.seed
       da[i * 4 + 2] = p.alpha

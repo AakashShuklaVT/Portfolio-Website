@@ -186,7 +186,8 @@ export function Train() {
     const engine = carRefs.current[0]
     if (engine) {
       trainRuntime.chimney.copy(CHIMNEY_TOP).applyMatrix4(engine.matrixWorld)
-      trainRuntime.chimneyVisible = !track.inWarp(d - CAR_LAYOUT[0].centreOffset + CHIMNEY_TOP.z)
+      trainRuntime.chimneyDistance = track.wrap(d - CAR_LAYOUT[0].centreOffset + CHIMNEY_TOP.z)
+      trainRuntime.chimneyVisible = !track.inWarp(trainRuntime.chimneyDistance)
       CYL_LOCAL.forEach((p, i) => trainRuntime.cylinders[i].copy(p).applyMatrix4(engine.matrixWorld))
       trainRuntime.forward.set(0, 0, 1).transformDirection(engine.matrixWorld)
     }

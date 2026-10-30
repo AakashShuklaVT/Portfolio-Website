@@ -7,10 +7,11 @@ import { useRideStore } from '../store/useRideStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useUiStore } from '../store/useUiStore'
 import { useWorldStore } from '../store/useWorldStore'
-import { IconMap, IconSettings, IconSoundOff, IconSoundOn } from './icons'
+import { IconMap, IconSettings } from './icons'
+import { pad2, stagger } from './Words'
 import type { TimeOfDay } from '../world/timeOfDay'
 
-/** Top bar: name, route map, sound and settings. */
+/** Top bar: wordmark on the left, one glass pill of controls on the right. */
 export function Hud() {
   const state = useRideStore((s) => s.state)
   const popover = useUiStore((s) => s.popover)
@@ -18,6 +19,8 @@ export function Hud() {
   const closePopover = useUiStore((s) => s.closePopover)
   const sound = useSettingsStore((s) => s.sound)
   const setSound = useSettingsStore((s) => s.setSound)
+  const stops = useWorldStore((s) => s.derived?.stations.length ?? 0)
+  const loaded = useAppStore((s) => s.loaded)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closePopover()
@@ -25,24 +28,29 @@ export function Hud() {
     return () => window.removeEventListener('keydown', onKey)
   }, [closePopover])
 
+  if (!loaded) return null
   return (
     <header className={`hud ${state === 'INTRO' ? 'hud-intro' : ''}`}>
-      <div className="brand">
-        <span className="brand-dot" aria-hidden="true" />
-        <span>
-          <strong>{profile.name}</strong>
-          <span className="brand-role">{profile.role}</span>
-        </span>
+      <div className="wordmark">
+        <strong>{profile.name}</strong>
+        <span className="label">{profile.role}</span>
       </div>
-      <nav className="hud-actions" aria-label="Island controls">
+      <nav className="controls fade-up" style={stagger(0, 900)} aria-label="Island controls">
         <button className="icon-btn" aria-label={sound ? 'Mute sound' : 'Turn sound on'} aria-pressed={sound} onClick={() => setSound(!sound)}>
-          {sound ? <IconSoundOn /> : <IconSoundOff />}
+          <span className={`eq ${sound ? 'on' : ''}`} aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
         </button>
         <button className="icon-btn" aria-label="Settings" aria-expanded={popover === 'settings'} onClick={() => togglePopover('settings')}>
           <IconSettings />
         </button>
-        <button className="btn btn-route" aria-expanded={popover === 'route'} onClick={() => togglePopover('route')}>
-          <IconMap /> <span>Route map</span>
+        <span className="divider" aria-hidden="true" />
+        <button className="route-btn" aria-expanded={popover === 'route'} aria-label="Route map" onClick={() => togglePopover('route')}>
+          <span className="route-text">Route</span>
+          <span className="label">{pad2(stops)} stops</span>
+          <IconMap />
         </button>
       </nav>
       {popover === 'route' && <RouteMap />}
@@ -62,13 +70,13 @@ function RouteMap() {
 
   return (
     <div className="popover route-map" ref={ref} role="dialog" aria-label="Route map">
-      <p className="eyebrow">Route map · tap a stop to travel express</p>
+      <p className="label">Route · tap a stop to go express</p>
       <ol>
-        {stations.map((s) => {
+        {stations.map((s, i) => {
           const here = state === 'IDLE_AT_STATION' && s.def.id === current
           const heading = s.def.id === target
           return (
-            <li key={s.def.id} className={`${here ? 'here' : ''} ${heading ? 'heading' : ''}`}>
+            <li key={s.def.id} className={`${here ? 'here' : ''} ${heading ? 'heading' : ''}`} style={stagger(i)}>
               <button
                 onClick={() => {
                   travelTo(s.def.id)
@@ -77,8 +85,13 @@ function RouteMap() {
                 aria-current={here ? 'location' : undefined}
               >
                 <span className="stop-dot" aria-hidden="true" />
-                <span className="stop-name">{s.def.name}</span>
-                <span className="stop-label">{here ? 'You are here' : heading ? 'Heading here' : CONTENT[s.def.contentId]?.label}</span>
+                <span className="stop-name">
+                  <span className="label">
+                    {pad2(i + 1)} · {CONTENT[s.def.contentId]?.label}
+                  </span>
+                  <strong>{s.def.name}</strong>
+                </span>
+                <span className="label label-accent">{here ? 'Here' : heading ? 'Next' : ''}</span>
               </button>
             </li>
           )
@@ -90,9 +103,9 @@ function RouteMap() {
 
 const TIMES: [TimeOfDay, string][] = [
   ['day', 'Day'],
-  ['sunset', 'Sunset'],
+  ['sunset', 'Dusk'],
   ['night', 'Night'],
-  ['auto', 'My time'],
+  ['auto', 'Local'],
 ]
 
 function Settings() {
@@ -106,7 +119,7 @@ function Settings() {
   return (
     <div className="popover settings" role="dialog" aria-label="Settings">
       <fieldset className="segmented">
-        <legend>Time of day</legend>
+        <legend className="label">Time of day</legend>
         {TIMES.map(([value, label]) => (
           <label key={value} className={timeOfDay === value ? 'on' : ''}>
             <input type="radio" name="time-of-day" value={value} checked={timeOfDay === value} onChange={() => setTimeOfDay(value)} />
@@ -115,15 +128,17 @@ function Settings() {
         ))}
       </fieldset>
       <label className="toggle">
-        <input type="checkbox" checked={reduced} onChange={(e) => setReduced(e.target.checked)} />
         <span>Reduced motion</span>
+        <input type="checkbox" role="switch" checked={reduced} onChange={(e) => setReduced(e.target.checked)} />
       </label>
-      <button className="btn btn-ghost" onClick={() => setLiteOpen(true)}>
-        Open the simple HTML version
-      </button>
-      <p className="muted small">
-        Renderer: {backend === 'webgpu' ? 'WebGPU' : backend === 'webgl' ? 'WebGL 2 (fallback)' : '…'} · quality tier {tier ?? '-'}
-      </p>
+      <div className="settings-foot">
+        <button className="link small" onClick={() => setLiteOpen(true)}>
+          Simple version
+        </button>
+        <span className="label">
+          {backend === 'webgpu' ? 'WebGPU' : backend === 'webgl' ? 'WebGL 2' : '…'} · tier {tier ?? '-'}
+        </span>
+      </div>
     </div>
   )
 }

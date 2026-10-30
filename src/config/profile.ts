@@ -10,8 +10,8 @@ export interface SocialLink {
 export const profile = {
   name: 'Aakash Shukla',
   role: 'Creative Developer',
-  tagline: 'Interactive 3D, playable ads and HTML5 games for the web.',
-  roles: ['Creative developer', 'Game developer', 'Frontend developer'],
+  tagline: 'I build playful 3D for the web.',
+  roles: ['Creative developer', 'Game developer', 'Frontend'],
   skills: ['Three.js', 'React Three Fiber', 'WebGPU / TSL', 'GLSL', 'Playable ads', 'HTML5 games', 'TypeScript', 'React', 'Frontend'],
   /** TODO: set the address visitors should write to. Leave empty to hide the email form. */
   email: '',

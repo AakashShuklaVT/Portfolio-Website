@@ -2,6 +2,7 @@ import { profile } from '../config/profile'
 import { CONTENT } from '../stations/content'
 import { useUiStore } from '../store/useUiStore'
 import { Sections } from './sections'
+import { pad2 } from './Words'
 
 const ORDER = ['about', 'projects', 'lab', 'experience', 'contact']
 
@@ -12,30 +13,51 @@ const ORDER = ['about', 'projects', 'lab', 'experience', 'contact']
  */
 export function LiteSite({ canGoBack }: { canGoBack: boolean }) {
   const setLiteOpen = useUiStore((s) => s.setLiteOpen)
+  const [first, ...rest] = profile.name.split(' ')
   return (
     <div className="lite">
       <header className="lite-head">
-        <div>
-          <p className="eyebrow">{profile.siteName}</p>
-          <h1>{profile.name}</h1>
-          <p className="intro-roles">{profile.roles.join(' · ')}</p>
+        <div className="row">
+          <span className="label label-accent">{profile.siteName}</span>
+          {canGoBack && (
+            <button className="btn btn-primary btn-sm" onClick={() => setLiteOpen(false)}>
+              Back to the island
+            </button>
+          )}
         </div>
-        {canGoBack && (
-          <button className="btn btn-primary" onClick={() => setLiteOpen(false)}>
-            Back to the island
-          </button>
-        )}
+        <h1 className="display">
+          {first} <em>{rest.join(' ')}</em>
+        </h1>
+        <p className="intro-lede">{profile.tagline}</p>
+        <div className="intro-roles">
+          {profile.roles.map((r) => (
+            <span key={r} className="label">
+              {r}
+            </span>
+          ))}
+        </div>
       </header>
-      <img className="lite-hero" src={`${import.meta.env.BASE_URL}island.webp`} alt="A small low-poly island with a train climbing a terraced mountain to a lighthouse." onError={(e) => (e.currentTarget.style.display = 'none')} />
+      <img
+        className="lite-hero"
+        src={`${import.meta.env.BASE_URL}island.webp`}
+        alt="A small low-poly island with a train climbing a terraced mountain to a lighthouse."
+        onError={(e) => (e.currentTarget.style.display = 'none')}
+      />
       <main>
-        {ORDER.map((id) => {
+        {ORDER.map((id, i) => {
           const c = CONTENT[id]
           return (
             <section key={id} className="lite-station" aria-labelledby={`lite-${id}`}>
-              <p className="eyebrow">{c.label}</p>
-              <h2 id={`lite-${id}`}>{c.title}</h2>
-              <p className="lead">{c.intro}</p>
-              <Sections sections={c.sections} interactive={false} />
+              <p className="label">
+                {pad2(i + 1)} · {c.label}
+              </p>
+              <div>
+                <h2 id={`lite-${id}`} className="display">
+                  {c.title}
+                </h2>
+                <p className="lead">{c.intro}</p>
+                <Sections sections={c.sections} interactive={false} />
+              </div>
             </section>
           )
         })}

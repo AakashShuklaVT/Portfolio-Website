@@ -1,14 +1,16 @@
+import type { CSSProperties } from 'react'
 import type { Section } from '../stations/content'
-import { IconExternal } from './icons'
+import { IconArrow } from './icons'
 import { Playground } from './Playground'
 import { ContactForm } from './ContactForm'
+import { pad2, stagger } from './Words'
 
 /** Renders station content as plain, accessible HTML (shared by the 3D overlay and the lite page). */
-export function Sections({ sections, interactive = true }: { sections: Section[]; interactive?: boolean }) {
+export function Sections({ sections, interactive = true, animate = false }: { sections: Section[]; interactive?: boolean; animate?: boolean }) {
   return (
     <>
       {sections.map((section, i) => (
-        <section key={i} className={`section section-${section.type}`}>
+        <section key={i} className={`section section-${section.type} ${animate ? 'fade-up' : ''}`} style={animate ? stagger(i + 3, 500) : undefined}>
           {section.heading && <h3>{section.heading}</h3>}
           <SectionBody section={section} interactive={interactive} />
         </section>
@@ -21,11 +23,11 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
   switch (section.type) {
     case 'text':
       return (
-        <>
+        <div className="text-lines">
           {section.body.map((p, i) => (
             <p key={i}>{p}</p>
           ))}
-        </>
+        </div>
       )
     case 'tags':
       return (
@@ -37,52 +39,44 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
       )
     case 'projects':
       return (
-        <div className="projects">
-          {section.items.map((p) => (
-            <article key={p.title} className="project" style={{ '--accent-card': p.accent ?? 'var(--accent)' } as React.CSSProperties}>
-              <header>
-                <span className="project-kind">
+        <ol className="work">
+          {section.items.map((p, i) => (
+            <li key={p.title + i} className="work-item" style={{ '--accent-card': p.accent ?? 'var(--accent)' } as CSSProperties}>
+              <span className="work-index">{pad2(i + 1)}</span>
+              <div className="work-meta">
+                <span className="label">
                   {p.kind}
                   {p.year && ` · ${p.year}`}
                 </span>
                 {p.placeholder && <span className="badge">placeholder</span>}
-              </header>
+              </div>
               <h4>{p.title}</h4>
-              {p.media && <img src={p.media} alt="" loading="lazy" />}
-              <p>{p.description}</p>
-              <ul className="tags small">
-                {p.tags.map((t) => (
-                  <li key={t}>{t}</li>
-                ))}
-              </ul>
-              {p.links.length > 0 && (
-                <div className="project-links">
+              <div>
+                {p.media && <img src={p.media} alt="" loading="lazy" />}
+                <p>{p.description}</p>
+                <div className="work-foot">
+                  <span className="work-tags">{p.tags.join(' / ')}</span>
                   {p.links.map((l) => (
-                    <a key={l.href} href={l.href} target="_blank" rel="noreferrer">
-                      {l.label} <IconExternal />
+                    <a key={l.href} className="arrow-link" href={l.href} target="_blank" rel="noreferrer">
+                      {l.label} <IconArrow />
                     </a>
                   ))}
                 </div>
-              )}
-            </article>
-          ))}
-        </div>
-      )
-    case 'services':
-      return (
-        <ul className="services">
-          {section.items.map((s) => (
-            <li key={s.title}>
-              <span className="service-icon" aria-hidden="true">
-                {s.icon}
-              </span>
-              <div>
-                <strong>{s.title}</strong>
-                <p>{s.body}</p>
               </div>
             </li>
           ))}
-        </ul>
+        </ol>
+      )
+    case 'services':
+      return (
+        <ol className="services">
+          {section.items.map((s) => (
+            <li key={s.title}>
+              <strong>{s.title}</strong>
+              <p>{s.body}</p>
+            </li>
+          ))}
+        </ol>
       )
     case 'timeline':
       return (
@@ -91,10 +85,10 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
             <li key={i}>
               <span className="period">{t.period}</span>
               <strong>
-                {t.title} · {t.org}
+                {t.title}, {t.org}
               </strong>
-              {t.placeholder && <span className="badge">placeholder</span>}
               <p>{t.body}</p>
+              {t.placeholder && <span className="badge">placeholder</span>}
             </li>
           ))}
         </ol>
@@ -103,7 +97,7 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
       return (
         <>
           <p>{section.body}</p>
-          {interactive ? <Playground /> : <p className="muted">Open the 3D island to try the live controls.</p>}
+          {interactive ? <Playground /> : <p className="muted">Open the island to try the live controls.</p>}
         </>
       )
     case 'contact':

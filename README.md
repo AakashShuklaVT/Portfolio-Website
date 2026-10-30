@@ -2,7 +2,7 @@
 
 The portfolio of **Aakash Shukla**: creative developer, game developer and frontend developer.
 
-A small hand-built low-poly island with a terraced mountain and a railway that spirals to a lighthouse at the summit. Visitors ride a little train between five stations, and each station holds a piece of the portfolio. A route map gives impatient visitors express travel, and a plain HTML version exists for anyone in a hurry, for screen readers and for devices without WebGL.
+A small hand-built low-poly island with a terraced mountain and a railway that spirals to a lighthouse at the summit. Visitors ride a little steam train between five stations, and each station holds a piece of the portfolio. From the summit the train slips through a portal gate, the camera sweeps around the island, and it comes back out of a second gate by the harbour. A route map gives impatient visitors express travel, and a plain HTML version exists for anyone in a hurry, for screen readers and for devices without WebGL.
 
 Built with React Three Fiber on Three.js's **WebGPURenderer** (automatic WebGL 2 fallback), with every shader written in **TSL**.
 
@@ -56,10 +56,15 @@ The editor runs inside the real renderer, so what you see is what visitors get.
 
 - **Rendering**: one `WebGPURenderer`, created in an async R3F `gl` factory. It uses WebGPU when available and WebGL 2 otherwise. The backend that actually starts sets a quality tier (pixel ratio, shadows, post-processing, particle counts).
 - **Terrain**: a seeded, terraced heightfield. The railway cuts and fills its own bed, station pads are flattened, and colour comes from a TSL material using per-face height, slope and path data, so facets stay crisp.
+- **Tunnels**: wherever the rail runs deep, the hill is raised over a stone vault and the terrain is cut away at each mouth behind a portal block, so tunnels are genuinely open end to end.
+- **Portal gates**: the track between the summit gate and the shore gate is hidden. Train materials discard fragments that have passed through a gate disc, so cars slide in and out rather than popping.
+- **Modelling kit** (): stations, the train, portals and foliage are built from tinted primitives and merged into one geometry per material layer, so a detailed station costs three draw calls.
 - **Railway**: a closed Catmull-Rom spline sampled by arc length. The train has no physics; each car is placed from two bogie points at fixed distances behind the engine. A small state machine (intro, departing, riding, arriving, idle, fast travel) eases speed along a braking curve.
 - **Camera**: a rig that blends between overview, ride, tunnel and station shots, plus a projection offset that keeps the subject framed beside the UI.
 - **Materials (TSL)**: terrain, water (baked depth, shore foam bands, faceted waves), GPU wind sway for instanced foliage, a sky dome, tilt-shift and vignette post-processing.
-- **Polish**: island-assembly intro after pipelines are precompiled, steam, birds, clouds with moving shadows, day / sunset / night or local time, and a procedural Web Audio soundscape (off until the visitor opts in).
+- **Polish**: island-assembly intro after pipelines are precompiled, noise-eroded particle smoke synced to the pistons, gulls whose wing beat runs in the vertex shader, drifting clouds, a rotating lighthouse beam with a real spotlight at night, day / dusk / night or local time, and a procedural Web Audio soundscape (off until the visitor opts in).
+- **Performance**: adaptive resolution (the pixel ratio steps down while frames run under 50 fps), fixed  order (ride, then train, then camera) so motion never judders, instancing everywhere, and shadow casting only for things big enough to need it.
+- **UI**: warm editorial design system in  (oklch tokens, Fraunces / Instrument Sans / JetBrains Mono, power-4 easing, reduced-motion aware).
 - **Accessibility**: real HTML for all content, keyboard operable, reduced-motion setting (which also honours the OS preference), and the lite HTML page.
 
 ```

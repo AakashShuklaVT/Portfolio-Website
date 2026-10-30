@@ -182,7 +182,7 @@ function StationLabel({ station }: { station: StationRuntime }) {
   return (
     <Html position={[p.x, p.y + 7, p.z]} center zIndexRange={[10, 0]} className="station-label">
       <span className="station-label-index">{String(station.index + 1).padStart(2, '0')}</span>
-      {station.def.name}
+      <span className="station-label-name">{station.def.name}</span>
     </Html>
   )
 }

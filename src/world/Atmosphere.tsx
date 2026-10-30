@@ -8,6 +8,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { useWorldStore } from '../store/useWorldStore'
 import { nightRuntime, resolveAtmosphere } from './timeOfDay'
 import type { AtmosphereData } from './types'
+import { glowLevel } from '../materials/kitMaterials'
 
 export const atmosphereUniforms = {
   skyTop: uniform(new THREE.Color('#8cc6e8')),
@@ -104,6 +105,7 @@ export function Atmosphere() {
     sceneFog.near = l.fogNear
     sceneFog.far = l.fogFar
     nightRuntime.factor += (target.night - nightRuntime.factor) * k
+    glowLevel.value = 0.3 + nightRuntime.factor * 1.9
 
     if (sun.current) {
       sun.current.position.copy(l.sunDir).multiplyScalar(120)

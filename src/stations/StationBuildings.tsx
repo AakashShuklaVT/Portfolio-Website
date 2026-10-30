@@ -1,175 +1,167 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
+import * as THREE from 'three/webgpu'
+import { abs, color, dot, float, length, normalView, normalize, positionGeometry, positionView, pow, smoothstep, uniform, uv, exp } from 'three/tsl'
+import { Html } from '@react-three/drei'
 import { useUiStore } from '../store/useUiStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { nightRuntime } from '../world/timeOfDay'
-import * as THREE from 'three/webgpu'
-import { Html } from '@react-three/drei'
 import { useWorldStore } from '../store/useWorldStore'
 import type { StationRuntime } from '../world/buildWorld'
 import { useRideStore } from '../store/useRideStore'
-import { buildPlatform } from './platform'
+import { buildPlatform, platformFurniture } from './platform'
+import { LIGHTHOUSE, MINE_WHEEL, buildLighthouseGeometry, buildWheelGeometry, getStationGeometry } from './stationKits'
+import { kitMaterials } from '../materials/kitMaterials'
+import type { KitLayer } from '../lib/kit'
 
+const platformMaterial = new THREE.MeshStandardNodeMaterial({ color: '#d9c7a8', roughness: 0.95 })
+const edgeMaterial = new THREE.MeshStandardNodeMaterial({ color: '#f2e3c6', roughness: 0.8 })
 
-const mat = (color: string) => new THREE.MeshStandardNodeMaterial({ color, roughness: 0.9, flatShading: true })
-export const buildingMaterials = {
-  wall: mat('#f4e6cc'),
-  wallWarm: mat('#f1d3a8'),
-  wood: mat('#9a6a45'),
-  woodDark: mat('#6e4a33'),
-  roofRed: mat('#c9573f'),
-  roofTeal: mat('#3f8c84'),
-  roofGreen: mat('#5f8f4e'),
-  stone: mat('#c9b7a1'),
-  platform: mat('#d8c3a4'),
-  dark: mat('#3a3230'),
-  window: new THREE.MeshStandardNodeMaterial({ color: '#ffd889', emissive: '#ffb347', emissiveIntensity: 0.35, roughness: 0.4 }),
-  white: mat('#f7f2ea'),
-  red: mat('#cf4a3c'),
-  glass: new THREE.MeshStandardNodeMaterial({ color: '#fff4c2', emissive: '#ffd36b', emissiveIntensity: 1.2, roughness: 0.2 }),
-}
-
-const box = new THREE.BoxGeometry(1, 1, 1)
-// Unit gable roof: 1 x 1 footprint, ridge along x at height 1.
-const gable = (() => {
-  const A = [-0.5, 0, 0.5], B = [0.5, 0, 0.5], C = [0.5, 1, 0], D = [-0.5, 1, 0]
-  const E = [0.5, 0, -0.5], F = [-0.5, 0, -0.5]
-  const tris = [A, B, C, A, C, D, E, F, D, E, D, C, F, A, D, B, E, C, F, E, B, F, B, A]
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3))
-  geometry.computeVertexNormals()
-  return geometry
-})()
-const cyl = new THREE.CylinderGeometry(1, 1, 1, 10)
-const cone = new THREE.ConeGeometry(1, 1, 10)
-
-interface HouseProps {
-  w: number
-  d: number
-  h: number
-  wall?: THREE.Material
-  roof?: THREE.Material
-  position?: [number, number, number]
-  rotationY?: number
-  chimney?: boolean
-}
-
-export function House({ w, d, h, wall = buildingMaterials.wall, roof = buildingMaterials.roofRed, position = [0, 0, 0], rotationY = 0, chimney }: HouseProps) {
+function KitMeshes({ layers, shadows = true }: { layers: Partial<Record<KitLayer, THREE.BufferGeometry>>; shadows?: boolean }) {
   return (
-    <group position={position} rotation-y={rotationY}>
-      <mesh geometry={box} material={wall} position-y={h / 2} scale={[w, h, d]} castShadow receiveShadow />
-      <mesh geometry={gable} material={roof} position-y={h} scale={[w + 0.5, d * 0.55, d + 0.6]} castShadow />
-      <mesh geometry={box} material={buildingMaterials.woodDark} position={[0, 0.65, d / 2 + 0.01]} scale={[0.7, 1.3, 0.05]} />
-      <mesh geometry={box} material={buildingMaterials.window} position={[w * 0.28, h * 0.6, d / 2 + 0.01]} scale={[0.6, 0.55, 0.05]} />
-      <mesh geometry={box} material={buildingMaterials.window} position={[-w * 0.28, h * 0.6, d / 2 + 0.01]} scale={[0.6, 0.55, 0.05]} />
-      {chimney && <mesh geometry={box} material={buildingMaterials.stone} position={[w * 0.3, h + d * 0.35, -d * 0.2]} scale={[0.45, 1.1, 0.45]} castShadow />}
+    <>
+      {layers.base && <mesh geometry={layers.base} material={kitMaterials.base} castShadow={shadows} receiveShadow />}
+      {layers.metal && <mesh geometry={layers.metal} material={kitMaterials.metal} castShadow={shadows} />}
+      {layers.glow && <mesh geometry={layers.glow} material={kitMaterials.glow} />}
+    </>
+  )
+}
+
+const wheelGeometry = buildWheelGeometry()
+
+function StationBuilding({ station, lighthouse }: { station: StationRuntime; lighthouse: THREE.Vector3 }) {
+  const { side, buildingPosition } = station
+  const track = useWorldStore((s) => s.derived?.track)
+  const type = station.def.building
+  const layers = useMemo(() => getStationGeometry(type), [type])
+  const platform = useMemo(() => (track ? buildPlatform(track, station) : null), [track, station])
+  const furniture = useMemo(() => (track ? platformFurniture(track, station) : null), [track, station])
+  const wheel = useRef<THREE.Mesh>(null)
+  useEffect(
+    () => () => {
+      platform?.body.dispose()
+      platform?.edge.dispose()
+      if (furniture) Object.values(furniture.layers).forEach((g) => g?.dispose())
+    },
+    [platform, furniture],
+  )
+
+  // The lighthouse stop is arranged around the tower; every other stop sits on its own plot facing the line.
+  const placement = useMemo(() => {
+    if (type === 'lighthouse') {
+      const toLine = station.position.clone().sub(lighthouse).setY(0).normalize()
+      return { position: lighthouse.clone(), yaw: Math.atan2(toLine.x, toLine.z) }
+    }
+    return { position: buildingPosition.clone().setY(buildingPosition.y - 0.3), yaw: Math.atan2(-side.x, -side.z) }
+  }, [type, station, lighthouse, buildingPosition, side])
+
+  useFrame((_, dt) => {
+    if (wheel.current && !useSettingsStore.getState().reducedMotion) wheel.current.rotation.x += dt * 0.9
+  })
+
+  return (
+    <group name={`station-${station.def.id}`}>
+      {platform && <mesh geometry={platform.body} material={platformMaterial} castShadow receiveShadow />}
+      {platform && <mesh geometry={platform.edge} material={edgeMaterial} receiveShadow />}
+      {furniture && <KitMeshes layers={furniture.layers} />}
+      {furniture?.signs.map((s, i) => (
+        <mesh key={i} position={s.position} rotation-y={s.yaw} material={s.material}>
+          <planeGeometry args={[2.6, 0.62]} />
+        </mesh>
+      ))}
+      <group position={placement.position} rotation-y={placement.yaw}>
+        <KitMeshes layers={layers} />
+        {type === 'mine' && <mesh ref={wheel} geometry={wheelGeometry} material={kitMaterials.metal} position={MINE_WHEEL.position} castShadow />}
+      </group>
+      <StationLabel station={station} />
     </group>
   )
 }
 
-const beamMaterial = new THREE.MeshBasicNodeMaterial({
-  color: '#fff1b8',
-  transparent: true,
-  opacity: 0.06,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-  side: THREE.DoubleSide,
-})
-// A long cone lying along +x, apex at the lamp.
-const beamGeometry = new THREE.ConeGeometry(2, 20, 12, 1, true).rotateZ(Math.PI / 2).translate(10, 0, 0)
+// ---------------------------------------------------------------- lighthouse
+
+const BEAM_LENGTH = 70
+const beamUniforms = { intensity: uniform(0.2) }
+
+/** A soft volumetric-looking cone: bright along its axis and near the lamp, fading out over distance. */
+function createBeamMaterial() {
+  const t = positionGeometry.x.div(BEAM_LENGTH).clamp(0, 1)
+  const along = pow(float(1).sub(t), 1.7).mul(smoothstep(0.0, 0.03, t))
+  const facing = abs(dot(normalize(normalView), normalize(positionView.negate())))
+  const core = pow(facing, 2.2)
+  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false })
+  m.colorNode = color('#fff1c4')
+  m.opacityNode = along.mul(core).mul(beamUniforms.intensity)
+  return m
+}
+
+const flareUniforms = { strength: uniform(0.4) }
+function createFlareMaterial() {
+  const p = uv().sub(0.5)
+  const r = length(p).mul(2)
+  const glow = smoothstep(1, 0, r).pow(3)
+  const streak = exp(abs(p.y).mul(-60)).mul(exp(abs(p.x).mul(-4)))
+  const m = new THREE.SpriteNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })
+  m.colorNode = color('#fff3cf')
+  m.opacityNode = glow.add(streak.mul(0.8)).mul(flareUniforms.strength)
+  return m
+}
+
+const beamGeometry = new THREE.ConeGeometry(7, BEAM_LENGTH, 28, 1, true).rotateZ(Math.PI / 2).translate(BEAM_LENGTH / 2, 0, 0)
+const flareGeometry = new THREE.PlaneGeometry(1, 1)
+const towerLayers = buildLighthouseGeometry()
+const tmpDir = new THREE.Vector3()
+const tmpCam = new THREE.Vector3()
+const lampWorld = new THREE.Vector3()
+const tmpQuat = new THREE.Quaternion()
+const lensGeometry = new THREE.BoxGeometry(0.5, 0.7, 0.5)
 
 function Lighthouse({ position }: { position: THREE.Vector3 }) {
-  const stripes = 5
-  const height = 9
-  const beam = useRef<THREE.Group>(null)
-  const glass = useMemo(() => buildingMaterials.glass.clone(), [])
+  const rotor = useRef<THREE.Group>(null)
+  const flare = useRef<THREE.Mesh>(null)
+  const spot = useRef<THREE.SpotLight>(null)
+  const camera = useThree((s) => s.camera)
+  const beamMaterial = useMemo(createBeamMaterial, [])
+  const flareMaterial = useMemo(createFlareMaterial, [])
+  const spotTarget = useMemo(() => {
+    const o = new THREE.Object3D()
+    o.position.set(60, -14, 0)
+    return o
+  }, [])
 
-  // Rotating beam; a sent signal makes the lamp and beam flash for a few seconds.
   useFrame((_, dt) => {
     const since = (performance.now() - useUiStore.getState().signalAt) / 1000
     const flashing = useUiStore.getState().signalAt > 0 && since < 3.5
     const pulse = flashing ? 0.5 + 0.5 * Math.sin(since * 14) : 0
     const night = nightRuntime.factor
-    glass.emissiveIntensity = 1.2 + night * 2 + pulse * 5
-    beamMaterial.opacity = 0.05 + night * 0.1 + pulse * 0.4
-    buildingMaterials.window.emissiveIntensity = 0.35 + night * 2.2
-    if (beam.current && !useSettingsStore.getState().reducedMotion) beam.current.rotation.y += dt * (flashing ? 3 : 0.6)
+    const reduced = useSettingsStore.getState().reducedMotion
+    if (rotor.current) rotor.current.rotation.y += dt * (flashing ? 3 : reduced ? 0.25 : 0.55)
+    beamUniforms.intensity.value = 0.3 + night * 0.65 + pulse * 0.6
+    if (spot.current) spot.current.intensity = night * 900 + pulse * 600
+
+    // The lamp flares when a beam swings round towards the camera.
+    if (rotor.current && flare.current) {
+      tmpDir.set(1, 0, 0).applyQuaternion(rotor.current.getWorldQuaternion(tmpQuat))
+      flare.current.getWorldPosition(lampWorld)
+      tmpCam.copy(camera.position).sub(lampWorld).normalize()
+      const facing = Math.max(0, Math.abs(tmpDir.x * tmpCam.x + tmpDir.z * tmpCam.z) - Math.abs(tmpCam.y) * 0.4)
+      const hit = Math.pow(facing, 12)
+      flareUniforms.strength.value = (0.35 + night * 0.65) * (0.45 + hit * 1.6) + pulse
+      flare.current.scale.setScalar(2.6 + hit * 9 * (0.4 + night) + pulse * 6)
+    }
   })
 
   return (
     <group position={position}>
-      <mesh geometry={cyl} material={buildingMaterials.stone} position-y={0.4} scale={[2.6, 0.8, 2.6]} castShadow receiveShadow />
-      {Array.from({ length: stripes }, (_, i) => {
-        const t0 = i / stripes
-        const t1 = (i + 1) / stripes
-        const r0 = 1.6 - t0 * 0.55
-        const r1 = 1.6 - t1 * 0.55
-        const geometry = new THREE.CylinderGeometry(r1, r0, height / stripes, 12)
-        return (
-          <mesh
-            key={i}
-            geometry={geometry}
-            material={i % 2 ? buildingMaterials.red : buildingMaterials.white}
-            position-y={0.8 + (t0 + 0.5 / stripes) * height}
-            castShadow
-          />
-        )
-      })}
-      <mesh geometry={cyl} material={buildingMaterials.dark} position-y={0.8 + height + 0.1} scale={[1.55, 0.2, 1.55]} castShadow />
-      <mesh geometry={cyl} material={glass} position-y={0.8 + height + 0.8} scale={[0.85, 1.2, 0.85]} />
-      <group ref={beam} position-y={0.8 + height + 0.8}>
-        <mesh geometry={beamGeometry} material={beamMaterial} />
-        <mesh geometry={beamGeometry} material={beamMaterial} rotation-y={Math.PI} />
+      <KitMeshes layers={towerLayers} />
+      <group ref={rotor} position-y={LIGHTHOUSE.lamp}>
+        <mesh geometry={beamGeometry} material={beamMaterial} renderOrder={4} />
+        <mesh geometry={beamGeometry} material={beamMaterial} rotation-y={Math.PI} renderOrder={4} />
+        <primitive object={spotTarget} />
+        <spotLight ref={spot} target={spotTarget} color="#fff1c4" intensity={0} distance={150} angle={0.17} penumbra={0.6} decay={1.2} />
+        <mesh geometry={lensGeometry} material={kitMaterials.metal} />
       </group>
-      <mesh geometry={cone} material={buildingMaterials.red} position-y={0.8 + height + 1.9} scale={[1.15, 1.0, 1.15]} castShadow />
-    </group>
-  )
-}
-
-function StationBuilding({ station }: { station: StationRuntime }) {
-  const { side, buildingPosition } = station
-  const yaw = useMemo(() => Math.atan2(-side.x, -side.z), [side])
-  const track = useWorldStore((s) => s.derived?.track)
-  const platform = useMemo(() => (track ? buildPlatform(track, station) : null), [track, station])
-  useEffect(() => () => void (platform && (platform.body.dispose(), platform.edge.dispose())), [platform])
-  const ground = buildingPosition.y - 0.25
-  const type = station.def.building
-  return (
-    <group name={`station-${station.def.id}`}>
-      {platform && <mesh geometry={platform.body} material={buildingMaterials.platform} castShadow receiveShadow />}
-      {platform && <mesh geometry={platform.edge} material={buildingMaterials.white} receiveShadow />}
-      <group position={[buildingPosition.x, ground, buildingPosition.z]} rotation-y={yaw}>
-        {type === 'harbor' && (
-          <>
-            <House w={5} d={3.2} h={2.8} roof={buildingMaterials.roofTeal} chimney />
-            <House w={2.6} d={2.4} h={2} position={[4.3, 0, 0.3]} wall={buildingMaterials.wallWarm} />
-          </>
-        )}
-        {type === 'woodland' && (
-          <>
-            <House w={4.4} d={3.2} h={2.4} wall={buildingMaterials.wood} roof={buildingMaterials.roofGreen} chimney />
-            <mesh geometry={box} material={buildingMaterials.woodDark} position={[3.4, 0.5, 0.6]} scale={[1.6, 1, 1.2]} castShadow />
-          </>
-        )}
-        {type === 'mine' && (
-          <>
-            <House w={3.6} d={2.8} h={2.4} wall={buildingMaterials.wallWarm} roof={buildingMaterials.roofRed} />
-            <mesh geometry={box} material={buildingMaterials.wood} position={[-3.6, 1.4, -0.8]} scale={[0.35, 2.8, 0.35]} castShadow />
-            <mesh geometry={box} material={buildingMaterials.wood} position={[-1.6, 1.4, -0.8]} scale={[0.35, 2.8, 0.35]} castShadow />
-            <mesh geometry={box} material={buildingMaterials.wood} position={[-2.6, 2.9, -0.8]} scale={[2.6, 0.35, 0.45]} castShadow />
-            <mesh geometry={box} material={buildingMaterials.dark} position={[-2.6, 1.3, -1.0]} scale={[1.65, 2.6, 0.1]} />
-          </>
-        )}
-        {type === 'village' && (
-          <>
-            <House w={4.2} d={3} h={2.6} roof={buildingMaterials.roofRed} chimney />
-            <House w={2.8} d={2.6} h={2.2} position={[4.4, 0, -1.5]} rotationY={0.4} wall={buildingMaterials.wallWarm} roof={buildingMaterials.roofTeal} chimney />
-            <House w={2.6} d={2.4} h={2} position={[-4.2, 0, -1.2]} rotationY={-0.3} roof={buildingMaterials.roofGreen} />
-          </>
-        )}
-        {type === 'lighthouse' && <House w={3} d={2.4} h={2.2} wall={buildingMaterials.white} roof={buildingMaterials.roofRed} />}
-      </group>
-      <StationLabel station={station} />
+      <mesh ref={flare} geometry={flareGeometry} material={flareMaterial} position-y={LIGHTHOUSE.lamp} renderOrder={5} />
     </group>
   )
 }
@@ -177,9 +169,10 @@ function StationBuilding({ station }: { station: StationRuntime }) {
 function StationLabel({ station }: { station: StationRuntime }) {
   const visible = useRideStore((s) => s.state === 'INTRO')
   if (!visible) return null
-  const p = station.buildingPosition
+  const p = station.def.building === 'lighthouse' ? station.position : station.buildingPosition
   return (
-    <Html position={[p.x, p.y + 6, p.z]} center zIndexRange={[10, 0]} className="station-label">
+    <Html position={[p.x, p.y + 7, p.z]} center zIndexRange={[10, 0]} className="station-label">
+      <span className="station-label-index">{String(station.index + 1).padStart(2, '0')}</span>
       {station.def.name}
     </Html>
   )
@@ -189,13 +182,13 @@ export function StationBuildings() {
   const derived = useWorldStore((s) => s.derived)
   const lighthousePos = useMemo(() => {
     if (!derived) return null
-    return new THREE.Vector3(0, derived.heightfield.heightAt(0, 0), 0)
+    return new THREE.Vector3(0, derived.heightfield.heightAt(0, 0) - 0.2, 0)
   }, [derived])
   if (!derived || !lighthousePos) return null
   return (
     <group name="stations">
       {derived.stations.map((s) => (
-        <StationBuilding key={s.def.id} station={s} />
+        <StationBuilding key={s.def.id} station={s} lighthouse={lighthousePos} />
       ))}
       <Lighthouse position={lighthousePos} />
     </group>

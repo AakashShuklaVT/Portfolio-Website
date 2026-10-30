@@ -59,7 +59,7 @@ function createMaterial(posAttr: THREE.InstancedBufferAttribute, dataAttr: THREE
   const shade = mix(float(0.66), float(1.08), smoothstep(-0.45, 0.45, p.y.negate().add(n.mul(0.25))))
   const smoke = mix(color('#5d5652'), color('#f7f3ee'), smoothstep(0.02, 0.4, life))
   const base = mix(smoke, color('#ffffff'), kind)
-  const lit = base.mul(shade).mul(mix(float(1), float(0.42), night))
+  const lit = base.mul(shade).mul(mix(float(1), float(0.3), night))
 
   const fadeIn = smoothstep(0.0, 0.07, life)
   const fadeOut = float(1).sub(smoothstep(0.45, 1.0, life))

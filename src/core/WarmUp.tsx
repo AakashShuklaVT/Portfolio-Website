@@ -6,6 +6,7 @@ import { useWorldStore } from '../store/useWorldStore'
 import { revealRuntime } from '../world/Reveal'
 import { useRideStore } from '../store/useRideStore'
 import { trainRuntime } from '../rail/trainRuntime'
+import { useSettingsStore } from '../store/useSettingsStore'
 
 /**
  * Compiles every pipeline in the scene before the island is shown, so the
@@ -19,7 +20,7 @@ export function WarmUp() {
   const ready = useWorldStore((s) => !!s.derived)
 
   useEffect(() => {
-    if (import.meta.env.DEV) Object.assign(window, { __scene: scene, __gl: gl, __camera: camera, __ride: useRideStore, __train: trainRuntime, __world: useWorldStore })
+    if (import.meta.env.DEV) Object.assign(window, { __scene: scene, __gl: gl, __camera: camera, __ride: useRideStore, __train: trainRuntime, __world: useWorldStore, __settings: useSettingsStore })
   }, [scene, gl, camera])
 
   useEffect(() => {

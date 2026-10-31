@@ -163,8 +163,10 @@ export function Train() {
       cb.localToWorld(b.set(0, BUFFER_Y, CAR_LAYOUT[i + 1].length / 2 + 0.05))
       const len = dir.subVectors(b, a).length()
       q.setFromUnitVectors(Z, dir.divideScalar(len || 1))
+      // Collapse hidden ones to a point: flattening only the length would leave a flat quad
+      // (the bellows is 1.6 m tall) floating over the island while the train is between the gates.
       const hidden = !ca.visible && !cb.visible
-      links.setMatrixAt(i, m.compose(a.add(b).multiplyScalar(0.5), q, s.set(1, 1, hidden ? 0 : len)))
+      links.setMatrixAt(i, m.compose(a.add(b).multiplyScalar(0.5), q, hidden ? s.setScalar(0) : s.set(1, 1, len)))
       if (i === 0 && plate.current) {
         plate.current.position.copy(a).y += 0.27
         plate.current.quaternion.copy(q)
@@ -177,7 +179,7 @@ export function Train() {
         cb.localToWorld(b.set(0, 1.75, CAR_LAYOUT[i + 1].length / 2))
         const bl = dir.subVectors(b, a).length()
         q.setFromUnitVectors(Z, dir.divideScalar(bl || 1))
-        bellows.setMatrixAt(bi, m.compose(a.add(b).multiplyScalar(0.5), q, s.set(1, 1, hidden ? 0 : bl + 0.1)))
+        bellows.setMatrixAt(bi, m.compose(a.add(b).multiplyScalar(0.5), q, hidden ? s.setScalar(0) : s.set(1, 1, bl + 0.1)))
       }
     }
     links.instanceMatrix.needsUpdate = true

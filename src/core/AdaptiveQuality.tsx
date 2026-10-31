@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useAppStore } from '../store/useAppStore'
+import { FRAME } from './frameOrder'
 
 /** Seconds of frames averaged before each decision. */
 const WINDOW = 1.5
@@ -53,7 +54,7 @@ export function AdaptiveQuality() {
     } else {
       s.good = 0
     }
-  })
+  }, FRAME.quality)
 
   return null
 }

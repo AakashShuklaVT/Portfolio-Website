@@ -7,7 +7,7 @@ import { useRideStore } from '../store/useRideStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useUiStore } from '../store/useUiStore'
 import { useWorldStore } from '../store/useWorldStore'
-import { IconMap, IconSettings } from './icons'
+import { IconMap, IconSettings, IconSoundOff, IconSoundOn } from './icons'
 import { pad2, stagger } from './Words'
 import type { TimeOfDay } from '../world/timeOfDay'
 
@@ -50,11 +50,7 @@ export function Hud() {
       </div>
       <nav className="controls fade-up" style={stagger(0, 900)} aria-label="Island controls">
         <button className="icon-btn" aria-label={sound ? 'Mute sound' : 'Turn sound on'} aria-pressed={sound} onClick={() => setSound(!sound)}>
-          <span className={`eq ${sound ? 'on' : ''}`} aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
+          {sound ? <IconSoundOn /> : <IconSoundOff />}
         </button>
         <button className="icon-btn" data-popover-toggle aria-label="Settings" aria-expanded={popover === 'settings'} onClick={() => togglePopover('settings')}>
           <IconSettings />

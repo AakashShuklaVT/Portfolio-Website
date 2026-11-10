@@ -41,7 +41,7 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
       return (
         <ol className="work">
           {section.items.map((p, i) => (
-            <li key={p.title + i} className="work-item" style={{ '--accent-card': p.accent ?? 'var(--accent)' } as CSSProperties}>
+            <li key={p.title + i} className={`work-item ${p.links.length ? 'has-link' : ''}`} style={{ '--accent-card': p.accent ?? 'var(--accent)' } as CSSProperties}>
               <span className="work-index">{pad2(i + 1)}</span>
               <div className="work-meta">
                 <span className="label">
@@ -56,8 +56,9 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
                 <p>{p.description}</p>
                 <div className="work-foot">
                   <span className="work-tags">{p.tags.join(' / ')}</span>
-                  {p.links.map((l) => (
-                    <a key={l.href} className="arrow-link" href={l.href} target="_blank" rel="noreferrer">
+                  {/* The first link stretches over the whole card, so a click anywhere on it opens the project in a new tab. */}
+                  {p.links.map((l, li) => (
+                    <a key={l.href} className={`arrow-link ${li === 0 ? 'card-link' : ''}`} href={l.href} target="_blank" rel="noopener noreferrer">
                       {l.label} <IconArrow />
                     </a>
                   ))}

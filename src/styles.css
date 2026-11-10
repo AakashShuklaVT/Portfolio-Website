@@ -390,40 +390,12 @@ button {
   }
 }
 
-/* sound: three bars that dance while sound is on */
-.eq {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 14px;
+/* sound: speaker whose waves pulse gently while sound is on */
+.speaker .wave {
+  animation: speaker-wave 1.6s var(--ease-in-out) infinite alternate;
 }
-.eq i {
-  width: 2px;
-  height: 6px;
-  border-radius: 2px;
-  background: currentColor;
-  opacity: 0.45;
-  transition:
-    height var(--dur-small) var(--ease-out),
-    opacity var(--dur-small) var(--ease-out);
-}
-.eq i:nth-child(2) {
-  height: 11px;
-}
-.eq i:nth-child(3) {
-  height: 8px;
-}
-.eq.on i {
-  opacity: 1;
-}
-.eq.on i {
-  animation: eq 1s var(--ease-in-out) infinite alternate;
-}
-.eq.on i:nth-child(2) {
-  animation-delay: -0.4s;
-}
-.eq.on i:nth-child(3) {
-  animation-delay: -0.7s;
+.speaker .wave-2 {
+  animation-delay: -0.8s;
 }
 
 /* ---------------------------------------------------------------- popovers */
@@ -814,10 +786,32 @@ button {
 .work-item {
   position: relative;
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 34px minmax(0, 1fr);
   gap: 4px 12px;
   padding: 18px 0;
   border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.work-item.has-link {
+  cursor: pointer;
+}
+/* stretched link: the card's first link covers the whole card */
+.work-item .card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.work-item .card-link:focus-visible {
+  outline: none;
+}
+.work-item.has-link:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+.work-item.has-link:focus-within::before {
+  transform: scaleY(1);
 }
 .work-item::before {
   content: '';
@@ -837,6 +831,9 @@ button {
   }
   .work-item:hover h4 {
     transform: translateX(4px);
+  }
+  .work-item.has-link:hover .arrow-link {
+    border-color: var(--accent);
   }
 }
 .work-index {
@@ -927,10 +924,11 @@ button {
 }
 .timeline li {
   display: grid;
-  grid-template-columns: 96px 1fr;
+  grid-template-columns: 96px minmax(0, 1fr);
   gap: 2px 14px;
   padding: 14px 0;
   border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
 }
 .timeline .period {
   grid-row: span 3;
@@ -1332,12 +1330,12 @@ button {
     box-shadow: 0 0 0 10px transparent;
   }
 }
-@keyframes eq {
+@keyframes speaker-wave {
   from {
-    height: 3px;
+    opacity: 0.35;
   }
   to {
-    height: 14px;
+    opacity: 1;
   }
 }
 

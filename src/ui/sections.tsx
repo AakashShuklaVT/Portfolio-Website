@@ -102,6 +102,6 @@ function SectionBody({ section, interactive }: { section: Section; interactive: 
         </>
       )
     case 'contact':
-      return <ContactForm intro={section.body} />
+      return <ContactForm />
   }
 }

@@ -27,7 +27,7 @@ export type Section =
   | { type: 'services'; heading?: string; items: { title: string; body: string }[] }
   | { type: 'timeline'; heading?: string; items: { title: string; org: string; period: string; body: string; placeholder?: boolean }[] }
   | { type: 'playground'; heading?: string; body: string }
-  | { type: 'contact'; heading?: string; body: string }
+  | { type: 'contact'; heading?: string }
 
 export interface StationContent {
   id: string
@@ -164,6 +164,6 @@ export const CONTENT: Record<string, StationContent> = {
     label: 'Contact',
     title: 'Send a signal',
     intro: 'Project, role, or just hello. The lighthouse is listening.',
-    sections: [{ type: 'contact', body: 'Your message opens in your mail app.' }],
+    sections: [{ type: 'contact' }],
   },
 }
